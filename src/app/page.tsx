@@ -1,69 +1,166 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+import React, { useEffect } from 'react';
+import { useAppStore } from '@/lib/store';
+import { Sidebar } from '@/components/Sidebar';
+import { MainHeader } from '@/components/MainHeader';
+import { QuickAdd } from '@/components/QuickAdd';
+import { TodoGroup } from '@/components/TodoGroup';
+import { DetailPanel } from '@/components/DetailPanel';
+import { WeekView } from '@/components/WeekView';
+import { ShortcutsModal } from '@/components/ShortcutsModal';
+import { ReminderListener } from '@/components/ReminderListener';
+import { getTodayISO, isOverdue } from '@/lib/dates';
+import { Sparkles, CheckCircle2, ListTodo } from 'lucide-react';
+
+export default function HomePage() {
+  const {
+    hydrateStore,
+    isHydrated,
+    activeView,
+    todos,
+    lists,
+    selectedTodoId,
+    statusFilter,
+    searchQuery,
+  } = useAppStore();
+
+  useEffect(() => {
+    hydrateStore();
+  }, [hydrateStore]);
+
+  if (!isHydrated) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 animate-pulse">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <p className="font-serif text-lg font-semibold tracking-tight text-amber-100">
+            Lumen is waking up...
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+    );
+  }
+
+  const today = getTodayISO();
+
+  // Filter todos by view
+  let viewFilteredTodos = todos;
+
+  if (activeView === 'inbox') {
+    viewFilteredTodos = todos.filter((t) => !t.dueDate && !t.listId);
+  } else if (activeView === 'today') {
+    viewFilteredTodos = todos.filter((t) => t.dueDate === today || isOverdue(t.dueDate, t.completed));
+  } else if (activeView === 'upcoming') {
+    viewFilteredTodos = todos.filter((t) => t.dueDate && t.dueDate > today);
+  } else if (activeView === 'week') {
+    viewFilteredTodos = todos;
+  } else {
+    // Custom list view
+    viewFilteredTodos = todos.filter((t) => t.listId === activeView);
+  }
+
+  // Filter by search query
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    viewFilteredTodos = viewFilteredTodos.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        (t.notes && t.notes.toLowerCase().includes(q))
+    );
+  }
+
+  // Filter by status tab (active / completed / all)
+  let statusFilteredTodos = viewFilteredTodos;
+  if (statusFilter === 'active') {
+    statusFilteredTodos = viewFilteredTodos.filter((t) => !t.completed);
+  } else if (statusFilter === 'completed') {
+    statusFilteredTodos = viewFilteredTodos.filter((t) => t.completed);
+  }
+
+  // Split into buckets
+  const overdueTodos = statusFilteredTodos.filter((t) => !t.completed && isOverdue(t.dueDate, t.completed));
+  const pinnedTodos = statusFilteredTodos.filter((t) => t.pinned && !isOverdue(t.dueDate, t.completed) && !t.completed);
+  const activeUnpinnedTodos = statusFilteredTodos.filter((t) => !t.pinned && !isOverdue(t.dueDate, t.completed) && !t.completed);
+  const completedTodos = statusFilteredTodos.filter((t) => t.completed);
+
+  return (
+    <div className="flex h-screen w-full bg-amber-50/20 text-stone-900 overflow-hidden bg-grain">
+      {/* Left Navigation Rail */}
+      <Sidebar />
+
+      {/* Main Workspace Pane */}
+      <main className="flex-1 flex flex-col h-full overflow-y-auto min-w-0">
+        <MainHeader />
+
+        <div className="flex-1 p-4 md:p-8 max-w-4xl w-full mx-auto space-y-6 pb-24">
+          {/* Quick Add Bar */}
+          <QuickAdd />
+
+          {/* If Week View is Active */}
+          {activeView === 'week' ? (
+            <WeekView />
+          ) : (
+            /* Standard View Task Buckets */
+            <div className="space-y-6">
+              {/* Overdue Section */}
+              <TodoGroup
+                title="Overdue"
+                todos={overdueTodos}
+                badgeColor="bg-rose-100 text-rose-800"
+              />
+
+              {/* Pinned Section */}
+              <TodoGroup
+                title="Pinned Tasks"
+                todos={pinnedTodos}
+                badgeColor="bg-amber-100 text-amber-900"
+              />
+
+              {/* Active Focus Tasks Section */}
+              <TodoGroup
+                title={activeView === 'today' ? "Today's Focus" : "Tasks"}
+                todos={activeUnpinnedTodos}
+                badgeColor="bg-amber-100 text-amber-900"
+              />
+
+              {/* Completed Section */}
+              <TodoGroup
+                title="Completed"
+                todos={completedTodos}
+                badgeColor="bg-stone-200 text-stone-700"
+                defaultExpanded={statusFilter === 'completed'}
+              />
+
+              {/* Empty State */}
+              {statusFilteredTodos.length === 0 && (
+                <div className="py-16 text-center border-2 border-dashed border-stone-200/80 rounded-2xl bg-white/60 p-8 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-700 flex items-center justify-center mx-auto shadow-xs">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-stone-800">
+                      All clear for now
+                    </h4>
+                    <p className="text-xs text-stone-500 max-w-xs mx-auto mt-1 font-medium">
+                      No tasks found in this view. Capture a new task above or press <kbd className="font-mono bg-stone-100 px-1 border rounded">N</kbd> to get started.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Right Context Detail Panel (Slide-over) */}
+      <DetailPanel />
+
+      {/* Modals & Floating Listeners */}
+      <ShortcutsModal />
+      <ReminderListener />
     </div>
   );
 }
