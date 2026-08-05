@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lumen — Calm, Time-Aware Personal Planner
 
-## Getting Started
+**Lumen** is a local-first, time-aware personal productivity and planning web application. Designed around focus, clarity, and intentional workload management, Lumen combines task capture, nested checklists, smart reminders, and a 7-day week planning canvas into a calm, responsive interface.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ✨ Features
+
+- 📥 **Inbox & Custom Lists**: Capture undated tasks instantly into the Inbox or group them into custom color-coded project lists.
+- ☀️ **Today & Overdue Focus**: Automatic grouping for tasks due today, with prominent alerts for overdue items.
+- 🗓️ **Week Planner Canvas**: 7-day timeline view (Monday to Sunday) for distributing and scheduling workload across the week.
+- ⚡ **Smart Quick-Add Command Bar (`N` or `/`)**: Natural language text parser that auto-tags metadata in real-time:
+  - `^today` or `^tomorrow` $\rightarrow$ Sets due date
+  - `!high`, `!medium`, `!low` $\rightarrow$ Assigns priority level
+  - `@work`, `@personal` $\rightarrow$ Categorizes into matching list
+  - `#5pm` $\rightarrow$ Schedules a reminder time
+- ✅ **Nested Checklist Subtasks**: Add interactive subtasks to any todo with completion progress tracking (`3/5`).
+- 🔔 **Reminders & Browser Alerts**: Native browser Web Notifications plus interactive floating toast alerts when scheduled reminders trigger.
+- ⌨️ **Keyboard Shortcuts (`?`)**:
+  - `N` or `/`: Focus Quick-Add input bar
+  - `Esc`: Close detail panel or modal
+  - `?`: Toggle keyboard shortcuts guide
+- 🔒 **Local-First & Offline**: Data is stored securely on device using IndexedDB (`idb-keyval`) — instant response with no external login required.
+- 🎨 **Calm Aesthetic**: Warm serif typography (*Fraunces* + *Plus Jakarta Sans*), grain atmosphere, animated checkmark strokes, and celebratory confetti effects.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org) + React 19
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **State & Storage**: [Zustand](https://github.com/pmndrs/zustand) + [idb-keyval](https://github.com/jakearchibald/idb-keyval) (IndexedDB)
+- **Icons**: Lucide React
+- **Micro-interactions**: Canvas Confetti
+
+---
+
+## 📁 Project Structure
+
+```
+lumen/
+├── src/
+│   ├── app/
+│   │   ├── globals.css          # Custom animations, grain atmosphere & Tailwind setup
+│   │   ├── layout.tsx           # Google Fonts & Root layout shell
+│   │   └── page.tsx             # Home page workspace layout & view filtering
+│   ├── components/
+│   │   ├── Sidebar.tsx          # 240px navigation rail (views, lists, reminder status)
+│   │   ├── MainHeader.tsx       # Dynamic view header, search bar & status filter tabs
+│   │   ├── QuickAdd.tsx         # Smart command bar with inline tag parser
+│   │   ├── TodoGroup.tsx        # Collapsible task section buckets
+│   │   ├── TodoRow.tsx          # Animated task row with metadata badges
+│   │   ├── DetailPanel.tsx      # 360px slide-over panel (notes, subtasks, reminder picker)
+│   │   ├── WeekView.tsx         # 7-day timeline planner grid
+│   │   ├── ShortcutsModal.tsx   # Keyboard shortcuts cheatsheet modal
+│   │   └── ReminderListener.tsx # Background reminder polling & alert toast
+│   └── lib/
+│       ├── types.ts             # TypeScript interface definitions
+│       ├── store.ts             # Zustand store & IndexedDB persistence logic
+│       ├── dates.ts             # ISO date utilities & 7-day calculations
+│       └── reminders.ts         # Notification API permission & trigger helpers
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Getting Started
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prerequisites
 
-## Learn More
+- [Node.js](https://nodejs.org) v24.11.1 (or v24+)
+- npm / yarn / pnpm
 
-To learn more about Next.js, take a look at the following resources:
+### Installation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Clone the repository and navigate into the folder:
+   ```bash
+   cd lumen
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 💡 Keyboard Shortcuts
+
+| Shortcut | Description |
+| :--- | :--- |
+| <kbd>N</kbd> or <kbd>/</kbd> | Focus Quick-Add input bar |
+| <kbd>Esc</kbd> | Close task detail panel or shortcuts modal |
+| <kbd>?</kbd> | Open keyboard shortcuts guide |
+| `^today` | Set due date to Today in Quick-Add |
+| `^tomorrow` | Set due date to Tomorrow in Quick-Add |
+| `!high` | Set High priority in Quick-Add |
+| `@listName` | Assign to custom List in Quick-Add |
+| `#5pm` | Schedule reminder alert for 5:00 PM |
+
+---
+
+## 📄 License
+
+MIT License. Built with care as a modern personal planner.
