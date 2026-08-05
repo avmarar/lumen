@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Inbox, 
   Sun, 
@@ -12,7 +12,10 @@ import {
   HelpCircle,
   Bell,
   X,
-  Sparkles
+  Sparkles,
+  User,
+  CloudCheck,
+  CloudOff
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getTodayISO, isOverdue } from '@/lib/dates';
@@ -29,14 +32,19 @@ export function Sidebar() {
     setIsShortcutsOpen,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
+    user,
+    setIsAuthModalOpen,
+    syncStatus,
   } = useAppStore();
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#D97706');
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
-    getNotificationPermission()
-  );
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    setNotifPermission(getNotificationPermission());
+  }, []);
 
   const today = getTodayISO();
 
@@ -86,6 +94,35 @@ export function Sidebar() {
             <X className="w-5 h-5" />
           </button>
         )}
+      </div>
+
+      {/* Auth & Sync Button Banner */}
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => setIsAuthModalOpen(true)}
+          className="w-full flex items-center justify-between p-2.5 bg-stone-800/80 hover:bg-stone-800 border border-stone-700/60 rounded-xl text-xs transition"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[11px] border border-amber-500/30">
+              {user?.email ? user.email.charAt(0).toUpperCase() : <User className="w-3.5 h-3.5" />}
+            </div>
+            <span className="truncate text-stone-200 font-medium">
+              {user?.email ? user.email : 'Guest Mode'}
+            </span>
+          </div>
+
+          <span
+            className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-md border ${
+              syncStatus === 'synced'
+                ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60'
+                : syncStatus === 'syncing'
+                ? 'bg-amber-950/80 text-amber-400 border-amber-800/60'
+                : 'bg-stone-800 text-stone-400 border-stone-700'
+            }`}
+          >
+            {syncStatus === 'synced' ? 'Synced' : syncStatus === 'syncing' ? 'Syncing' : 'Sync'}
+          </span>
+        </button>
       </div>
 
       {/* Main Views Navigation */}

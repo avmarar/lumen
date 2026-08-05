@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
-import { Todo, List, ChecklistItem, ActiveView, StatusFilter, Priority } from './types';
-import { getTodayISO, formatDateISO } from './dates';
+import { Todo, List, ChecklistItem, ActiveView, StatusFilter, Priority, RecurrenceRule } from './types';
+import { getTodayISO, formatDateISO, calculateNextDueDate } from './dates';
 
 const DB_STORE_KEY = 'lumen_app_data_v1';
 
@@ -57,6 +57,7 @@ function getSeedData(): AppData {
         completed: false,
         dueDate: today,
         priority: 'low',
+        recurrence: { frequency: 'weekly', interval: 1 },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -108,10 +109,19 @@ export interface AppStoreState {
   isMobileSidebarOpen: boolean;
   isHydrated: boolean;
 
+  // v2 Auth & Sync State
+  user: any | null;
+  isAuthModalOpen: boolean;
+  syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
+
   // Actions
   hydrateStore: () => Promise<void>;
+  hydrateCloudData: (lists: List[], todos: Todo[], checklists: ChecklistItem[]) => void;
 
-  // Navigation
+  // Navigation & Auth Actions
+  setUser: (user: any | null) => void;
+  setIsAuthModalOpen: (open: boolean) => void;
+  setSyncStatus: (status: 'synced' | 'syncing' | 'offline' | 'error') => void;
   setActiveView: (view: ActiveView) => void;
   setSelectedTodoId: (id: string | null) => void;
   setStatusFilter: (filter: StatusFilter) => void;
@@ -125,7 +135,7 @@ export interface AppStoreState {
   deleteList: (id: string) => void;
 
   // Todo CRUD
-  addTodo: (data: { title: string; listId?: string | null; dueDate?: string | null; priority?: Priority; remindAt?: string | null; notes?: string }) => string;
+  addTodo: (data: { title: string; listId?: string | null; dueDate?: string | null; priority?: Priority; remindAt?: string | null; notes?: string; recurrence?: RecurrenceRule | null }) => string;
   updateTodo: (id: string, updates: Partial<Todo>) => void;
   toggleTodoComplete: (id: string) => void;
   deleteTodo: (id: string) => void;
@@ -165,6 +175,14 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     isMobileSidebarOpen: false,
     isHydrated: false,
 
+    user: null,
+    isAuthModalOpen: false,
+    syncStatus: 'offline',
+
+    setUser: (user) => set({ user }),
+    setIsAuthModalOpen: (isAuthModalOpen) => set({ isAuthModalOpen }),
+    setSyncStatus: (syncStatus) => set({ syncStatus }),
+
     hydrateStore: async () => {
       if (get().isHydrated) return;
       try {
@@ -196,6 +214,10 @@ export const useAppStore = create<AppStoreState>((set, get) => {
           isHydrated: true,
         });
       }
+    },
+
+    hydrateCloudData: (lists, todos, checklists) => {
+      persist({ lists, todos, checklists });
     },
 
     setActiveView: (activeView) => set({ activeView, isMobileSidebarOpen: false }),
@@ -245,6 +267,7 @@ export const useAppStore = create<AppStoreState>((set, get) => {
         dueDate: data.dueDate ?? null,
         priority: data.priority || 'none',
         remindAt: data.remindAt ?? null,
+        recurrence: data.recurrence ?? null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -266,9 +289,13 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     },
 
     toggleTodoComplete: (id) => {
-      const todos = get().todos.map((t) => {
+      const currentTodos = get().todos;
+      const targetTodo = currentTodos.find((t) => t.id === id);
+      if (!targetTodo) return;
+
+      const nextCompleted = !targetTodo.completed;
+      let newTodos = currentTodos.map((t) => {
         if (t.id === id) {
-          const nextCompleted = !t.completed;
           return {
             ...t,
             completed: nextCompleted,
@@ -278,7 +305,51 @@ export const useAppStore = create<AppStoreState>((set, get) => {
         }
         return t;
       });
-      persist({ todos });
+
+      let newChecklists = get().checklists;
+
+      // If marking a recurring task as completed, auto-spawn the next instance
+      if (nextCompleted && targetTodo.recurrence) {
+        const nextDueDate = calculateNextDueDate(targetTodo.dueDate, targetTodo.recurrence);
+        
+        let nextRemindAt: string | null = null;
+        if (targetTodo.remindAt) {
+          const timePart = targetTodo.remindAt.split('T')[1] || '09:00:00';
+          nextRemindAt = `${nextDueDate}T${timePart}`;
+        }
+
+        const spawnedTodoId = `todo-${Date.now()}`;
+        const spawnedTodo: Todo = {
+          id: spawnedTodoId,
+          listId: targetTodo.listId ?? null,
+          title: targetTodo.title,
+          notes: targetTodo.notes || '',
+          completed: false,
+          dueDate: nextDueDate,
+          priority: targetTodo.priority,
+          remindAt: nextRemindAt,
+          recurrence: targetTodo.recurrence,
+          parentRecurringId: targetTodo.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        newTodos = [spawnedTodo, ...newTodos];
+
+        // Copy checklist items to spawned todo as uncompleted subtasks
+        const sourceChecklists = newChecklists.filter((c) => c.todoId === targetTodo.id);
+        const copiedChecklists: ChecklistItem[] = sourceChecklists.map((c, idx) => ({
+          id: `check-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+          todoId: spawnedTodoId,
+          title: c.title,
+          completed: false,
+          order: c.order,
+        }));
+
+        newChecklists = [...newChecklists, ...copiedChecklists];
+      }
+
+      persist({ todos: newTodos, checklists: newChecklists });
     },
 
     deleteTodo: (id) => {

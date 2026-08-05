@@ -6,6 +6,14 @@ export type ActiveView = MainViewType | string; // MainViewType or listId
 
 export type StatusFilter = 'active' | 'completed' | 'all';
 
+export type RecurrenceFrequency = 'daily' | 'weekdays' | 'weekly' | 'monthly';
+
+export interface RecurrenceRule {
+  frequency: RecurrenceFrequency;
+  interval?: number; // e.g. every 2 weeks
+  daysOfWeek?: number[]; // [1, 3, 5] for Mon/Wed/Fri
+}
+
 export interface List {
   id: string;
   name: string;
@@ -34,6 +42,8 @@ export interface Todo {
   priority: Priority;
   remindAt?: string | null; // ISO DateTime string
   pinned?: boolean;
+  recurrence?: RecurrenceRule | null;
+  parentRecurringId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
