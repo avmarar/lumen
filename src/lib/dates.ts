@@ -1,3 +1,5 @@
+import { RecurrenceRule } from './types';
+
 export function getTodayISO(): string {
   const d = new Date();
   return formatDateISO(d);
@@ -113,4 +115,45 @@ export function formatDateTimeFriendly(isoDateTime?: string | null): string {
   const dateStr = formatFriendlyDate(dateISO);
 
   return `${dateStr} at ${timeStr}`;
+}
+
+export function calculateNextDueDate(currentDueDateISO: string | null | undefined, rule: RecurrenceRule): string {
+  const baseDate = currentDueDateISO ? parseISODate(currentDueDateISO) : new Date();
+  const nextDate = new Date(baseDate);
+  const interval = rule.interval || 1;
+
+  switch (rule.frequency) {
+    case 'daily':
+      nextDate.setDate(nextDate.getDate() + interval);
+      break;
+    case 'weekdays':
+      do {
+        nextDate.setDate(nextDate.getDate() + 1);
+      } while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
+      break;
+    case 'weekly':
+      nextDate.setDate(nextDate.getDate() + 7 * interval);
+      break;
+    case 'monthly':
+      nextDate.setMonth(nextDate.getMonth() + interval);
+      break;
+  }
+
+  return formatDateISO(nextDate);
+}
+
+export function formatRecurrenceLabel(rule?: RecurrenceRule | null): string {
+  if (!rule) return '';
+  switch (rule.frequency) {
+    case 'daily':
+      return rule.interval && rule.interval > 1 ? `Every ${rule.interval} days` : 'Every day';
+    case 'weekdays':
+      return 'Every weekday (Mon-Fri)';
+    case 'weekly':
+      return rule.interval && rule.interval > 1 ? `Every ${rule.interval} weeks` : 'Every week';
+    case 'monthly':
+      return rule.interval && rule.interval > 1 ? `Every ${rule.interval} months` : 'Every month';
+    default:
+      return '';
+  }
 }

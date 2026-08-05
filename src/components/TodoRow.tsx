@@ -9,11 +9,12 @@ import {
   Trash2, 
   ChevronRight,
   Pin,
-  AlertCircle
+  AlertCircle,
+  Repeat
 } from 'lucide-react';
 import { Todo } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
-import { formatFriendlyDate, isOverdue, getTodayISO } from '@/lib/dates';
+import { formatFriendlyDate, isOverdue, getTodayISO, formatRecurrenceLabel } from '@/lib/dates';
 
 interface TodoRowProps {
   todo: Todo;
@@ -43,7 +44,6 @@ export function TodoRow({ todo }: TodoRowProps) {
     toggleTodoComplete(todo.id);
 
     if (!todo.completed) {
-      // Fire confetti if completing high priority or big task
       if (todo.priority === 'high' || todoChecklists.length > 2) {
         confetti({
           particleCount: 40,
@@ -155,6 +155,14 @@ export function TodoRow({ todo }: TodoRowProps) {
               >
                 <Calendar className="w-3 h-3" />
                 {formatFriendlyDate(todo.dueDate)}
+              </span>
+            )}
+
+            {/* Recurrence Badge */}
+            {todo.recurrence && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 font-medium text-[11px]">
+                <Repeat className="w-3 h-3 text-purple-600" />
+                {formatRecurrenceLabel(todo.recurrence)}
               </span>
             )}
 

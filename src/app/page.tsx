@@ -10,12 +10,17 @@ import { DetailPanel } from '@/components/DetailPanel';
 import { WeekView } from '@/components/WeekView';
 import { ShortcutsModal } from '@/components/ShortcutsModal';
 import { ReminderListener } from '@/components/ReminderListener';
+import { AuthModal } from '@/components/AuthModal';
 import { getTodayISO, isOverdue } from '@/lib/dates';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { fetchUserDataFromSupabase } from '@/lib/sync';
+import { useRealtimeSync } from '@/lib/useRealtimeSync';
 import { Sparkles, CheckCircle2, ListTodo } from 'lucide-react';
 
 export default function HomePage() {
   const {
     hydrateStore,
+    hydrateCloudData,
     isHydrated,
     activeView,
     todos,
@@ -23,11 +28,48 @@ export default function HomePage() {
     selectedTodoId,
     statusFilter,
     searchQuery,
+    setUser,
+    setSyncStatus,
   } = useAppStore();
+
+  useRealtimeSync();
 
   useEffect(() => {
     hydrateStore();
-  }, [hydrateStore]);
+
+    if (isSupabaseConfigured && supabase) {
+      // Check existing auth session
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session?.user) {
+          setUser(session.user);
+          setSyncStatus('syncing');
+          const cloudData = await fetchUserDataFromSupabase(session.user.id);
+          if (cloudData && (cloudData.todos.length > 0 || cloudData.lists.length > 0)) {
+            hydrateCloudData(cloudData.lists, cloudData.todos, cloudData.checklists);
+          }
+          setSyncStatus('synced');
+        } else {
+          setUser(null);
+          setSyncStatus('offline');
+        }
+      });
+
+      // Listen for auth state changes
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          setSyncStatus('synced');
+        } else {
+          setUser(null);
+          setSyncStatus('offline');
+        }
+      });
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    }
+  }, [hydrateStore, setUser, setSyncStatus, hydrateCloudData]);
 
   if (!isHydrated) {
     return (
@@ -161,6 +203,7 @@ export default function HomePage() {
       {/* Modals & Floating Listeners */}
       <ShortcutsModal />
       <ReminderListener />
+      <AuthModal />
     </div>
   );
 }
