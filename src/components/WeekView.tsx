@@ -3,10 +3,17 @@
 import React, { useState } from 'react';
 import { Plus, Calendar } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { getWeekDays, getTodayISO } from '@/lib/dates';
+import { getWeekDays, getTodayISO, formatLoadHours } from '@/lib/dates';
 
 export function WeekView() {
-  const { todos, addTodo, setSelectedTodoId, selectedTodoId, toggleTodoComplete } = useAppStore();
+  const {
+    todos,
+    addTodo,
+    setSelectedTodoId,
+    selectedTodoId,
+    toggleTodoComplete,
+    dayBudgetMinutes,
+  } = useAppStore();
   const weekDays = getWeekDays();
   const todayISO = getTodayISO();
 
@@ -39,6 +46,14 @@ export function WeekView() {
         {weekDays.map((day) => {
           const dayTodos = todos.filter((t) => t.dueDate === day.dateISO);
           const isToday = day.dateISO === todayISO;
+          const dayLoad = dayTodos
+            .filter((t) => !t.completed)
+            .reduce((sum, t) => {
+              if (t.durationMinutes && t.durationMinutes > 0) return sum + t.durationMinutes;
+              if (t.startTime) return sum + 30;
+              return sum;
+            }, 0);
+          const overBudget = dayLoad > dayBudgetMinutes;
 
           return (
             <div
@@ -46,7 +61,9 @@ export function WeekView() {
               className={`flex flex-col min-h-[320px] rounded-2xl p-3 border transition ${
                 isToday
                   ? 'bg-amber-500/10 border-amber-500/30 ring-1 ring-amber-500/20 shadow-xs'
-                  : 'bg-white border-stone-200/80 hover:border-stone-300'
+                  : overBudget
+                    ? 'bg-amber-50/80 border-amber-300/80'
+                    : 'bg-white border-stone-200/80 hover:border-stone-300'
               }`}
             >
               {/* Day Column Header */}
@@ -62,6 +79,14 @@ export function WeekView() {
                   >
                     {day.dateNum}
                   </div>
+                  {dayLoad > 0 && (
+                    <div
+                      className={`text-[10px] font-semibold mt-1 ${overBudget ? 'text-amber-800' : 'text-stone-400'}`}
+                    >
+                      {formatLoadHours(dayLoad)}
+                      {overBudget ? ' · over' : ''}
+                    </div>
+                  )}
                 </div>
 
                 <span

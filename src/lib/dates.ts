@@ -275,3 +275,22 @@ export const DURATION_PRESETS = [
 ] as const;
 
 export const PLANNER_HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7 AM – 10 PM
+
+/** Planned minutes for load: use duration, or 30m default when startTime is set. */
+export function plannedMinutesForTodo(todo: {
+  completed?: boolean;
+  durationMinutes?: number | null;
+  startTime?: string | null;
+}): number {
+  if (todo.completed) return 0;
+  if (todo.durationMinutes && todo.durationMinutes > 0) return todo.durationMinutes;
+  if (todo.startTime) return 30;
+  return todo.durationMinutes && todo.durationMinutes > 0 ? todo.durationMinutes : 0;
+}
+
+export function formatLoadHours(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}

@@ -15,14 +15,15 @@ import { BulkActionBar } from '@/components/BulkActionBar';
 import { TimeBlockingGrid } from '@/components/TimeBlockingGrid';
 import { getTodayISO, isOverdue } from '@/lib/dates';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { fetchUserDataFromSupabase } from '@/lib/sync';
-import { useRealtimeSync } from '@/lib/useRealtimeSync';
+import { useRealtimeSync, bootstrapCloudSync } from '@/lib/useRealtimeSync';
+import { SyncToast } from '@/components/SyncToast';
+import { FocusOverlay } from '@/components/FocusOverlay';
+import { ShareListModal } from '@/components/ShareListModal';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 export default function HomePage() {
   const {
     hydrateStore,
-    hydrateCloudData,
     isHydrated,
     activeView,
     todos,
@@ -30,6 +31,8 @@ export default function HomePage() {
     searchQuery,
     activeTagFilter,
     todaySubView,
+    assignedToMeFilter,
+    user,
     setUser,
     setSyncStatus,
   } = useAppStore();
@@ -40,27 +43,24 @@ export default function HomePage() {
     hydrateStore();
 
     if (isSupabaseConfigured && supabase) {
-      // Check existing auth session
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (session?.user) {
           setUser(session.user);
-          setSyncStatus('syncing');
-          const cloudData = await fetchUserDataFromSupabase(session.user.id);
-          if (cloudData && (cloudData.todos.length > 0 || cloudData.lists.length > 0)) {
-            hydrateCloudData(cloudData.lists, cloudData.todos, cloudData.checklists);
-          }
-          setSyncStatus('synced');
+          await bootstrapCloudSync(session.user.id);
         } else {
           setUser(null);
           setSyncStatus('offline');
         }
       });
 
-      // Listen for auth state changes
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           setUser(session.user);
-          setSyncStatus('synced');
+          if (event === 'SIGNED_IN') {
+            await bootstrapCloudSync(session.user.id);
+          } else {
+            setSyncStatus('synced');
+          }
         } else {
           setUser(null);
           setSyncStatus('offline');
@@ -71,7 +71,7 @@ export default function HomePage() {
         authListener.subscription.unsubscribe();
       };
     }
-  }, [hydrateStore, setUser, setSyncStatus, hydrateCloudData]);
+  }, [hydrateStore, setUser, setSyncStatus]);
 
   if (!isHydrated) {
     return (
@@ -122,6 +122,10 @@ export default function HomePage() {
   // Filter by active tag
   if (activeTagFilter) {
     viewFilteredTodos = viewFilteredTodos.filter((t) => (t.tags || []).includes(activeTagFilter));
+  }
+
+  if (assignedToMeFilter && user) {
+    viewFilteredTodos = viewFilteredTodos.filter((t) => t.assigneeId === user.id);
   }
 
   // Filter by status tab (active / completed / all)
@@ -227,6 +231,9 @@ export default function HomePage() {
       <ReminderListener />
       <AuthModal />
       <BulkActionBar />
+      <ShareListModal />
+      <FocusOverlay />
+      <SyncToast />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   X,
   Sparkles,
   User,
+  Share2,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getTodayISO, isOverdue } from '@/lib/dates';
@@ -33,6 +34,7 @@ export function Sidebar() {
     user,
     setIsAuthModalOpen,
     syncStatus,
+    setShareListId,
   } = useAppStore();
 
   const [isAddingList, setIsAddingList] = useState(false);
@@ -119,10 +121,18 @@ export function Sidebar() {
                 ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60'
                 : syncStatus === 'syncing'
                   ? 'bg-amber-950/80 text-amber-400 border-amber-800/60'
-                  : 'bg-stone-800 text-stone-400 border-stone-700'
+                  : syncStatus === 'error'
+                    ? 'bg-rose-950/80 text-rose-400 border-rose-800/60'
+                    : 'bg-stone-800 text-stone-400 border-stone-700'
             }`}
           >
-            {syncStatus === 'synced' ? 'Synced' : syncStatus === 'syncing' ? 'Syncing' : 'Sync'}
+            {syncStatus === 'synced'
+              ? 'Synced'
+              : syncStatus === 'syncing'
+                ? 'Syncing'
+                : syncStatus === 'error'
+                  ? 'Error'
+                  : 'Offline'}
           </span>
         </button>
       </div>
@@ -299,10 +309,22 @@ export function Sidebar() {
               </button>
 
               <div className="flex items-center gap-1">
+                {list.shared || list.myRole === 'editor' || list.myRole === 'viewer' ? (
+                  <Share2 className="w-3 h-3 text-stone-500 group-hover:hidden" />
+                ) : null}
                 {listCount > 0 && (
                   <span className="text-xs px-2 py-0.5 rounded-md bg-stone-800 text-stone-400 font-mono group-hover:hidden">
                     {listCount}
                   </span>
+                )}
+                {user && (list.myRole === 'owner' || !list.myRole) && (
+                  <button
+                    onClick={() => setShareListId(list.id)}
+                    className="hidden group-hover:flex p-1 text-stone-500 hover:text-amber-400 rounded hover:bg-stone-800"
+                    title="Share list"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
                 )}
                 <button
                   onClick={() => deleteList(list.id)}
