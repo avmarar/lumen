@@ -5,6 +5,16 @@ export function getTodayISO(): string {
   return formatDateISO(d);
 }
 
+export function addDaysISO(days: number, fromISO?: string): string {
+  const base = fromISO ? parseISODate(fromISO) : new Date();
+  base.setDate(base.getDate() + days);
+  return formatDateISO(base);
+}
+
+export function getTomorrowISO(): string {
+  return addDaysISO(1);
+}
+
 export function formatDateISO(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -48,7 +58,9 @@ export function formatFriendlyDate(isoDate?: string | null): string {
   });
 }
 
-export function getUpcomingDays(count = 7): Array<{ dateISO: string; label: string; dayName: string; isToday: boolean }> {
+export function getUpcomingDays(
+  count = 7
+): Array<{ dateISO: string; label: string; dayName: string; isToday: boolean }> {
   const result = [];
   const today = new Date();
 
@@ -77,14 +89,19 @@ export function getUpcomingDays(count = 7): Array<{ dateISO: string; label: stri
   return result;
 }
 
-export function getWeekDays(): Array<{ dateISO: string; dayName: string; dateNum: number; isToday: boolean }> {
+export function getWeekDays(): Array<{
+  dateISO: string;
+  dayName: string;
+  dateNum: number;
+  isToday: boolean;
+}> {
   const today = new Date();
   const todayISO = formatDateISO(today);
 
   // Find Monday of current week
   const dayOfWeek = today.getDay(); // 0 is Sun
-  const distanceToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-  
+  const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
   const monday = new Date(today);
   monday.setDate(today.getDate() + distanceToMon);
 
@@ -117,7 +134,10 @@ export function formatDateTimeFriendly(isoDateTime?: string | null): string {
   return `${dateStr} at ${timeStr}`;
 }
 
-export function calculateNextDueDate(currentDueDateISO: string | null | undefined, rule: RecurrenceRule): string {
+export function calculateNextDueDate(
+  currentDueDateISO: string | null | undefined,
+  rule: RecurrenceRule
+): string {
   const baseDate = currentDueDateISO ? parseISODate(currentDueDateISO) : new Date();
   const nextDate = new Date(baseDate);
   const interval = rule.interval || 1;
@@ -157,3 +177,101 @@ export function formatRecurrenceLabel(rule?: RecurrenceRule | null): string {
       return '';
   }
 }
+
+export function formatDuration(minutes?: number | null): string {
+  if (!minutes || minutes <= 0) return '';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+}
+
+export function parseDurationToken(token: string): number | null {
+  const match = token.match(/^~?(\d+)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)$/i);
+  if (!match) return null;
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  if (['h', 'hr', 'hrs', 'hour', 'hours'].includes(unit)) return value * 60;
+  return value;
+}
+
+const DAY_NAME_MAP: Record<string, number> = {
+  sun: 0,
+  sunday: 0,
+  mon: 1,
+  monday: 1,
+  tue: 2,
+  tues: 2,
+  tuesday: 2,
+  wed: 3,
+  wednesday: 3,
+  thu: 4,
+  thur: 4,
+  thurs: 4,
+  thursday: 4,
+  fri: 5,
+  friday: 5,
+  sat: 6,
+  saturday: 6,
+};
+
+/** Parse flexible relative date tokens like ^next friday, ^in 3 days, ^mon, ^today */
+export function parseFlexibleDueDate(text: string): string | null {
+  const lower = text.toLowerCase();
+
+  // ^today / ^tomorrow
+  if (/\^today\b/.test(lower)) return getTodayISO();
+  if (/\^tomorrow\b/.test(lower)) {
+    return formatDateISO(new Date(Date.now() + 86400000));
+  }
+
+  // ^in N days
+  const inDays = lower.match(/\^in\s+(\d+)\s+days?\b/);
+  if (inDays) {
+    const n = parseInt(inDays[1], 10);
+    return formatDateISO(new Date(Date.now() + 86400000 * n));
+  }
+
+  // ^next friday / ^friday / ^mon
+  const dayMatch = lower.match(/\^(?:next\s+)?([a-z]+)\b/);
+  if (dayMatch) {
+    const dayName = dayMatch[1];
+    const targetDow = DAY_NAME_MAP[dayName];
+    if (targetDow !== undefined) {
+      const today = new Date();
+      const currentDow = today.getDay();
+      let delta = (targetDow - currentDow + 7) % 7;
+      // If "next" is present, or same day already, jump a full week ahead when delta is 0
+      if (delta === 0 || /\^next\s+/.test(lower)) {
+        if (delta === 0) delta = 7;
+      }
+      const d = new Date(today);
+      d.setDate(today.getDate() + delta);
+      return formatDateISO(d);
+    }
+  }
+
+  return null;
+}
+
+export function formatStartTime(startTime?: string | null): string {
+  if (!startTime) return '';
+  const [hStr, mStr] = startTime.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr || '0', 10);
+  if (isNaN(h)) return startTime;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+export const DURATION_PRESETS = [
+  { label: '15m', minutes: 15 },
+  { label: '30m', minutes: 30 },
+  { label: '45m', minutes: 45 },
+  { label: '1h', minutes: 60 },
+  { label: '2h', minutes: 120 },
+] as const;
+
+export const PLANNER_HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7 AM – 10 PM

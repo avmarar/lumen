@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
-import { Todo, List, ChecklistItem, ActiveView, StatusFilter, Priority, RecurrenceRule } from './types';
-import { getTodayISO, formatDateISO, calculateNextDueDate } from './dates';
+import type { User } from '@supabase/supabase-js';
+import {
+  Todo,
+  List,
+  ChecklistItem,
+  ActiveView,
+  StatusFilter,
+  Priority,
+  RecurrenceRule,
+  TodaySubView,
+} from './types';
+import { getTodayISO, calculateNextDueDate } from './dates';
 
 const DB_STORE_KEY = 'lumen_app_data_v1';
 
@@ -12,85 +22,68 @@ interface AppData {
 }
 
 const DEFAULT_LISTS: List[] = [
-  { id: 'list-work', name: 'Work', color: '#3B82F6', archived: false, order: 0, createdAt: new Date().toISOString() },
-  { id: 'list-personal', name: 'Personal', color: '#10B981', archived: false, order: 1, createdAt: new Date().toISOString() },
-  { id: 'list-ideas', name: 'Ideas & Projects', color: '#F59E0B', archived: false, order: 2, createdAt: new Date().toISOString() },
+  {
+    id: 'list-work',
+    name: 'Work',
+    color: '#3B82F6',
+    archived: false,
+    order: 0,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'list-personal',
+    name: 'Personal',
+    color: '#10B981',
+    archived: false,
+    order: 1,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'list-ideas',
+    name: 'Ideas & Projects',
+    color: '#F59E0B',
+    archived: false,
+    order: 2,
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 function getSeedData(): AppData {
   const today = getTodayISO();
-  const tomorrow = formatDateISO(new Date(Date.now() + 86400000));
-  const inTwoDays = formatDateISO(new Date(Date.now() + 86400000 * 2));
 
   return {
     lists: DEFAULT_LISTS,
     todos: [
       {
-        id: 'todo-1',
-        listId: 'list-work',
-        title: 'Review product design specification for Lumen MVP',
-        notes: 'Check 3-column layout, typography, and color palette in design system section.',
-        completed: false,
-        dueDate: today,
-        priority: 'high',
-        pinned: true,
-        remindAt: `${today}T17:00:00`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'todo-2',
-        listId: 'list-work',
-        title: 'Draft week 32 roadmap sprint goals',
-        notes: 'Break down deliverables into actionable checklists.',
-        completed: false,
-        dueDate: tomorrow,
-        priority: 'medium',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'todo-3',
-        listId: 'list-personal',
-        title: 'Weekly grocery restock & meal prep',
-        notes: 'Buy organic greens, sourdough, espresso beans.',
-        completed: false,
-        dueDate: today,
-        priority: 'low',
-        recurrence: { frequency: 'weekly', interval: 1 },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'todo-4',
+        id: 'todo-welcome',
         listId: null,
-        title: 'Explore local-first sync with IndexedDB',
-        notes: 'Consider Dexie or CRDTs for future cloud backup.',
+        title: 'Welcome to Lumen — press N to capture your first real task',
+        notes:
+          'Try ^today, !high, @work, #focus, or ~30m in Quick Add. Open this card to explore notes, tags, duration, and reminders.',
         completed: false,
-        dueDate: null,
+        dueDate: today,
         priority: 'none',
+        tags: ['example'],
+        durationMinutes: 15,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
-      {
-        id: 'todo-5',
-        listId: 'list-ideas',
-        title: 'Design high-contrast theme toggle for Lumen',
-        notes: '',
-        completed: true,
-        completedAt: new Date().toISOString(),
-        dueDate: inTwoDays,
-        priority: 'low',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
     ],
     checklists: [
-      { id: 'check-1', todoId: 'todo-1', title: 'Verify 3-column rail width (240px)', completed: true, order: 0 },
-      { id: 'check-2', todoId: 'todo-1', title: 'Verify custom checkmark stroke animation', completed: true, order: 1 },
-      { id: 'check-3', todoId: 'todo-1', title: 'Test keyboard shortcut command bar (N key)', completed: false, order: 2 },
-      { id: 'check-4', todoId: 'todo-3', title: 'Fresh vegetables', completed: true, order: 0 },
-      { id: 'check-5', todoId: 'todo-3', title: 'Artisanal coffee beans', completed: false, order: 1 },
+      {
+        id: 'check-welcome-1',
+        todoId: 'todo-welcome',
+        title: 'Explore the detail panel on the right',
+        completed: false,
+        order: 0,
+      },
+      {
+        id: 'check-welcome-2',
+        todoId: 'todo-welcome',
+        title: 'Delete this example when you’re ready',
+        completed: false,
+        order: 1,
+      },
     ],
   };
 }
@@ -99,7 +92,7 @@ export interface AppStoreState {
   lists: List[];
   todos: Todo[];
   checklists: ChecklistItem[];
-  
+
   // UI State
   activeView: ActiveView;
   selectedTodoId: string | null;
@@ -108,9 +101,12 @@ export interface AppStoreState {
   isShortcutsOpen: boolean;
   isMobileSidebarOpen: boolean;
   isHydrated: boolean;
+  activeTagFilter: string | null;
+  selectedTodoIds: string[];
+  todaySubView: TodaySubView;
 
   // v2 Auth & Sync State
-  user: any | null;
+  user: User | null;
   isAuthModalOpen: boolean;
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
 
@@ -119,7 +115,7 @@ export interface AppStoreState {
   hydrateCloudData: (lists: List[], todos: Todo[], checklists: ChecklistItem[]) => void;
 
   // Navigation & Auth Actions
-  setUser: (user: any | null) => void;
+  setUser: (user: User | null) => void;
   setIsAuthModalOpen: (open: boolean) => void;
   setSyncStatus: (status: 'synced' | 'syncing' | 'offline' | 'error') => void;
   setActiveView: (view: ActiveView) => void;
@@ -128,6 +124,17 @@ export interface AppStoreState {
   setSearchQuery: (query: string) => void;
   setIsShortcutsOpen: (open: boolean) => void;
   setIsMobileSidebarOpen: (open: boolean) => void;
+  setActiveTagFilter: (tag: string | null) => void;
+  setTodaySubView: (view: TodaySubView) => void;
+
+  // Multi-select / Bulk
+  toggleTodoSelection: (id: string) => void;
+  selectAllTodos: (ids: string[]) => void;
+  clearTodoSelection: () => void;
+  bulkUpdateTodos: (ids: string[], updates: Partial<Todo>) => void;
+  bulkDeleteTodos: (ids: string[]) => void;
+  bulkCompleteTodos: (ids: string[]) => void;
+  bulkAddTag: (ids: string[], tag: string) => void;
 
   // List CRUD
   addList: (name: string, color?: string) => string;
@@ -135,7 +142,18 @@ export interface AppStoreState {
   deleteList: (id: string) => void;
 
   // Todo CRUD
-  addTodo: (data: { title: string; listId?: string | null; dueDate?: string | null; priority?: Priority; remindAt?: string | null; notes?: string; recurrence?: RecurrenceRule | null }) => string;
+  addTodo: (data: {
+    title: string;
+    listId?: string | null;
+    dueDate?: string | null;
+    priority?: Priority;
+    remindAt?: string | null;
+    notes?: string;
+    recurrence?: RecurrenceRule | null;
+    durationMinutes?: number | null;
+    startTime?: string | null;
+    tags?: string[];
+  }) => string;
   updateTodo: (id: string, updates: Partial<Todo>) => void;
   toggleTodoComplete: (id: string) => void;
   deleteTodo: (id: string) => void;
@@ -158,7 +176,9 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     };
     set(payload);
     if (typeof window !== 'undefined') {
-      setIDB(DB_STORE_KEY, payload).catch((err: unknown) => console.error('Error saving to IndexedDB:', err));
+      setIDB(DB_STORE_KEY, payload).catch((err: unknown) =>
+        console.error('Error saving to IndexedDB:', err)
+      );
     }
   };
 
@@ -174,6 +194,9 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     isShortcutsOpen: false,
     isMobileSidebarOpen: false,
     isHydrated: false,
+    activeTagFilter: null,
+    selectedTodoIds: [],
+    todaySubView: 'list',
 
     user: null,
     isAuthModalOpen: false,
@@ -182,6 +205,60 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     setUser: (user) => set({ user }),
     setIsAuthModalOpen: (isAuthModalOpen) => set({ isAuthModalOpen }),
     setSyncStatus: (syncStatus) => set({ syncStatus }),
+    setActiveTagFilter: (activeTagFilter) => set({ activeTagFilter }),
+    setTodaySubView: (todaySubView) => set({ todaySubView }),
+
+    toggleTodoSelection: (id) => {
+      const current = get().selectedTodoIds;
+      set({
+        selectedTodoIds: current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+      });
+    },
+    selectAllTodos: (ids) => set({ selectedTodoIds: ids }),
+    clearTodoSelection: () => set({ selectedTodoIds: [] }),
+    bulkUpdateTodos: (ids, updates) => {
+      const idSet = new Set(ids);
+      const todos = get().todos.map((t) =>
+        idSet.has(t.id) ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+      );
+      persist({ todos });
+      set({ selectedTodoIds: [] });
+    },
+    bulkDeleteTodos: (ids) => {
+      const idSet = new Set(ids);
+      const todos = get().todos.filter((t) => !idSet.has(t.id));
+      const checklists = get().checklists.filter((c) => !idSet.has(c.todoId));
+      const selectedTodoId =
+        get().selectedTodoId && idSet.has(get().selectedTodoId!) ? null : get().selectedTodoId;
+      set({ selectedTodoId, selectedTodoIds: [] });
+      persist({ todos, checklists });
+    },
+    bulkCompleteTodos: (ids) => {
+      const idSet = new Set(ids);
+      const now = new Date().toISOString();
+      const todos = get().todos.map((t) =>
+        idSet.has(t.id) ? { ...t, completed: true, completedAt: now, updatedAt: now } : t
+      );
+      persist({ todos });
+      set({ selectedTodoIds: [] });
+    },
+    bulkAddTag: (ids, tag) => {
+      const normalized = tag.replace(/^#/, '').trim().toLowerCase();
+      if (!normalized) return;
+      const idSet = new Set(ids);
+      const todos = get().todos.map((t) => {
+        if (!idSet.has(t.id)) return t;
+        const existing = t.tags || [];
+        if (existing.includes(normalized)) return t;
+        return {
+          ...t,
+          tags: [...existing, normalized],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      persist({ todos });
+      set({ selectedTodoIds: [] });
+    },
 
     hydrateStore: async () => {
       if (get().isHydrated) return;
@@ -220,7 +297,8 @@ export const useAppStore = create<AppStoreState>((set, get) => {
       persist({ lists, todos, checklists });
     },
 
-    setActiveView: (activeView) => set({ activeView, isMobileSidebarOpen: false }),
+    setActiveView: (activeView) =>
+      set({ activeView, isMobileSidebarOpen: false, selectedTodoIds: [] }),
     setSelectedTodoId: (selectedTodoId) => set({ selectedTodoId }),
     setStatusFilter: (statusFilter) => set({ statusFilter }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
@@ -268,6 +346,9 @@ export const useAppStore = create<AppStoreState>((set, get) => {
         priority: data.priority || 'none',
         remindAt: data.remindAt ?? null,
         recurrence: data.recurrence ?? null,
+        durationMinutes: data.durationMinutes ?? null,
+        startTime: data.startTime ?? null,
+        tags: data.tags || [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -311,7 +392,7 @@ export const useAppStore = create<AppStoreState>((set, get) => {
       // If marking a recurring task as completed, auto-spawn the next instance
       if (nextCompleted && targetTodo.recurrence) {
         const nextDueDate = calculateNextDueDate(targetTodo.dueDate, targetTodo.recurrence);
-        
+
         let nextRemindAt: string | null = null;
         if (targetTodo.remindAt) {
           const timePart = targetTodo.remindAt.split('T')[1] || '09:00:00';
@@ -330,6 +411,9 @@ export const useAppStore = create<AppStoreState>((set, get) => {
           remindAt: nextRemindAt,
           recurrence: targetTodo.recurrence,
           parentRecurringId: targetTodo.id,
+          durationMinutes: targetTodo.durationMinutes ?? null,
+          startTime: null,
+          tags: targetTodo.tags || [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -356,7 +440,8 @@ export const useAppStore = create<AppStoreState>((set, get) => {
       const todos = get().todos.filter((t) => t.id !== id);
       const checklists = get().checklists.filter((c) => c.todoId !== id);
       const selectedTodoId = get().selectedTodoId === id ? null : get().selectedTodoId;
-      set({ selectedTodoId });
+      const selectedTodoIds = get().selectedTodoIds.filter((x) => x !== id);
+      set({ selectedTodoId, selectedTodoIds });
       persist({ todos, checklists });
     },
 

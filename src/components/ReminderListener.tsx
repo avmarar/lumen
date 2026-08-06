@@ -7,7 +7,11 @@ import { triggerBrowserNotification } from '@/lib/reminders';
 
 export function ReminderListener() {
   const { todos, setSelectedTodoId } = useAppStore();
-  const [activeToast, setActiveToast] = useState<{ id: string; title: string; remindAt: string } | null>(null);
+  const [activeToast, setActiveToast] = useState<{
+    id: string;
+    title: string;
+    remindAt: string;
+  } | null>(null);
   const [firedReminderIds, setFiredReminderIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -21,7 +25,10 @@ export function ReminderListener() {
           const diffMs = now.getTime() - remindTime.getTime();
           if (diffMs >= 0 && diffMs <= 3600000) {
             // Trigger browser native notification
-            triggerBrowserNotification(`Reminder: ${todo.title}`, `Due at ${remindTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+            triggerBrowserNotification(
+              `Reminder: ${todo.title}`,
+              `Due at ${remindTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+            );
 
             // Show floating UI Toast
             setActiveToast({
@@ -55,7 +62,10 @@ export function ReminderListener() {
             <Sparkles className="w-3 h-3" /> Reminder Alert
           </span>
           <span className="text-[10px] text-stone-400">
-            {new Date(activeToast.remindAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            {new Date(activeToast.remindAt).toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
           </span>
         </div>
         <p className="text-xs font-semibold text-stone-100 truncate">{activeToast.title}</p>

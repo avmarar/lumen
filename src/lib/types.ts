@@ -8,6 +8,8 @@ export type StatusFilter = 'active' | 'completed' | 'all';
 
 export type RecurrenceFrequency = 'daily' | 'weekdays' | 'weekly' | 'monthly';
 
+export type TodaySubView = 'list' | 'planner';
+
 export interface RecurrenceRule {
   frequency: RecurrenceFrequency;
   interval?: number; // e.g. every 2 weeks
@@ -44,6 +46,9 @@ export interface Todo {
   pinned?: boolean;
   recurrence?: RecurrenceRule | null;
   parentRecurringId?: string | null;
+  durationMinutes?: number | null; // e.g., 15, 30, 45, 60, 120
+  startTime?: string | null; // 'HH:mm' e.g., '14:00'
+  tags?: string[]; // Array of custom tags, e.g., ['design', 'client']
   createdAt: string;
   updatedAt: string;
 }

@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer base {
   :root {
-    --font-serif: "Fraunces", Georgia, serif;
-    --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+    --font-serif: 'Fraunces', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
 

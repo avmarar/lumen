@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Calendar, CheckCircle2 } from 'lucide-react';
+import { Plus, Calendar } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getWeekDays, getTodayISO } from '@/lib/dates';
-import { Todo } from '@/lib/types';
 
 export function WeekView() {
   const { todos, addTodo, setSelectedTodoId, selectedTodoId, toggleTodoComplete } = useAppStore();
@@ -53,17 +52,23 @@ export function WeekView() {
               {/* Day Column Header */}
               <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-stone-100">
                 <div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-amber-700' : 'text-stone-400'}`}>
+                  <span
+                    className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-amber-700' : 'text-stone-400'}`}
+                  >
                     {day.dayName}
                   </span>
-                  <div className={`text-lg font-bold font-serif leading-none mt-0.5 ${isToday ? 'text-amber-900' : 'text-stone-800'}`}>
+                  <div
+                    className={`text-lg font-bold font-serif leading-none mt-0.5 ${isToday ? 'text-amber-900' : 'text-stone-800'}`}
+                  >
                     {day.dateNum}
                   </div>
                 </div>
 
-                <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-semibold ${
-                  isToday ? 'bg-amber-200/80 text-amber-900' : 'bg-stone-100 text-stone-600'
-                }`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-semibold ${
+                    isToday ? 'bg-amber-200/80 text-amber-900' : 'bg-stone-100 text-stone-600'
+                  }`}
+                >
                   {dayTodos.length}
                 </span>
               </div>
@@ -83,8 +88,8 @@ export function WeekView() {
                         selectedTodoId === todo.id
                           ? 'bg-amber-100 border-amber-400 text-amber-950 font-medium'
                           : todo.completed
-                          ? 'bg-stone-50 border-stone-100 text-stone-400 line-through'
-                          : 'bg-stone-50/80 hover:bg-stone-100 border-stone-200/60 text-stone-800'
+                            ? 'bg-stone-50 border-stone-100 text-stone-400 line-through'
+                            : 'bg-stone-50/80 hover:bg-stone-100 border-stone-200/60 text-stone-800'
                       }`}
                     >
                       <div className="flex items-start gap-1.5">

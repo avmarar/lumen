@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+set -e
+
+echo "→ Formatting..."
+npm run format
+
+# Re-stage files that were already staged and got reformatted
+git update-index --again
+
+echo "→ Linting..."
+npm run lint
+
+echo "→ Building..."
+npm run build
+
+echo "✓ Pre-commit checks passed"
