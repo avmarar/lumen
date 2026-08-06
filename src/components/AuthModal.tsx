@@ -5,6 +5,7 @@ import { X, Mail, Key, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useAppStore } from '@/lib/store';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { migrateLocalToSupabase, fetchUserDataFromSupabase } from '@/lib/sync';
+import { CalendarExport } from '@/components/CalendarExport';
 
 export function AuthModal() {
   const {
@@ -148,18 +149,22 @@ export function AuthModal() {
 
           {user ? (
             /* Signed In View */
-            <div className="space-y-4 text-center py-2">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto border border-amber-200 font-bold text-lg">
-                {user.email?.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-stone-800">{user.email}</p>
-                <p className="text-xs text-emerald-600 font-medium mt-0.5 flex items-center justify-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Cloud Sync Active
-                </p>
+            <div className="space-y-4 py-2">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto border border-amber-200 font-bold text-lg">
+                  {user.email?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">{user.email}</p>
+                  <p className="text-xs text-emerald-600 font-medium mt-0.5 flex items-center justify-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Cloud Sync Active
+                  </p>
+                </div>
               </div>
 
-              <div className="pt-2 border-t border-stone-100">
+              <CalendarExport />
+
+              <div className="pt-1">
                 <button
                   onClick={handleSignOut}
                   className="w-full py-2.5 bg-stone-100 hover:bg-rose-50 hover:text-rose-700 text-stone-700 font-semibold text-xs rounded-xl transition"
@@ -170,101 +175,104 @@ export function AuthModal() {
             </div>
           ) : (
             /* Sign In / Sign Up Form */
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              {/* Toggle Segment */}
-              <div className="flex bg-stone-100 p-1 rounded-xl text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setErrorMsg('');
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg transition ${
-                    mode === 'login'
-                      ? 'bg-white text-stone-900 shadow-xs'
-                      : 'text-stone-500 hover:text-stone-800'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setErrorMsg('');
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg transition ${
-                    mode === 'signup'
-                      ? 'bg-white text-stone-900 shadow-xs'
-                      : 'text-stone-500 hover:text-stone-800'
-                  }`}
-                >
-                  Register
-                </button>
-              </div>
-
-              {errorMsg && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                  <span>{errorMsg}</span>
+            <div className="space-y-4">
+              <CalendarExport />
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                {/* Toggle Segment */}
+                <div className="flex bg-stone-100 p-1 rounded-xl text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('login');
+                      setErrorMsg('');
+                    }}
+                    className={`flex-1 py-1.5 rounded-lg transition ${
+                      mode === 'login'
+                        ? 'bg-white text-stone-900 shadow-xs'
+                        : 'text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signup');
+                      setErrorMsg('');
+                    }}
+                    className={`flex-1 py-1.5 rounded-lg transition ${
+                      mode === 'signup'
+                        ? 'bg-white text-stone-900 shadow-xs'
+                        : 'text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    Register
+                  </button>
                 </div>
-              )}
 
-              {successMsg && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <span>{successMsg}</span>
-                </div>
-              )}
+                {errorMsg && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
 
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs font-medium bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-amber-500 focus:bg-white"
-                    />
+                {successMsg && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>{successMsg}</span>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs font-medium bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-amber-500 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Key className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs font-medium bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-amber-500 focus:bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Key className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs font-medium bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-amber-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !isSupabaseConfigured}
-                className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading
-                  ? 'Connecting...'
-                  : mode === 'login'
-                    ? 'Sign In'
-                    : 'Create Account & Sync Tasks'}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={loading || !isSupabaseConfigured}
+                  className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading
+                    ? 'Connecting...'
+                    : mode === 'login'
+                      ? 'Sign In'
+                      : 'Create Account & Sync Tasks'}
+                </button>
+              </form>
+            </div>
           )}
         </div>
       </div>
