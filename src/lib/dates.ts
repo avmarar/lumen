@@ -285,7 +285,7 @@ export function plannedMinutesForTodo(todo: {
   if (todo.completed) return 0;
   if (todo.durationMinutes && todo.durationMinutes > 0) return todo.durationMinutes;
   if (todo.startTime) return 30;
-  return todo.durationMinutes && todo.durationMinutes > 0 ? todo.durationMinutes : 0;
+  return 0;
 }
 
 export function formatLoadHours(minutes: number): string {

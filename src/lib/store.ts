@@ -333,6 +333,15 @@ export const useAppStore = create<AppStoreState>((set, get) => {
           updatedAt: now,
         });
       }
+      const cascadingComments = get().comments.filter((c) => idSet.has(c.todoId));
+      for (const c of cascadingComments) {
+        queueIfSignedIn(signedIn, {
+          entity: 'comment',
+          entityId: c.id,
+          op: 'delete',
+          updatedAt: now,
+        });
+      }
       const todos = get().todos.filter((t) => !idSet.has(t.id));
       const checklists = get().checklists.filter((c) => !idSet.has(c.todoId));
       const comments = get().comments.filter((c) => !idSet.has(c.todoId));
@@ -866,8 +875,18 @@ export const useAppStore = create<AppStoreState>((set, get) => {
       if (!listId) return true; // inbox personal
       const list = get().lists.find((l) => l.id === listId);
       if (!list) return true;
-      if (!list.shared && !list.myRole) return true;
-      return list.myRole === 'owner' || list.myRole === 'editor' || list.myRole === undefined;
+
+      if (list.myRole === 'viewer') return false;
+      if (list.myRole === 'owner' || list.myRole === 'editor') return true;
+
+      // Personal / unshared lists remain editable for the local owner
+      if (!list.shared) return true;
+
+      // Shared list without an explicit role: only allow if current user owns it
+      const userId = get().user?.id;
+      if (userId && list.ownerId && list.ownerId === userId) return true;
+
+      return false;
     },
   };
 });

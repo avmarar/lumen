@@ -46,7 +46,7 @@ export function ShareListModal() {
       setError('Could not create invite. Run migration_shared_lists.sql.');
       return;
     }
-    updateList(shareListId, { shared: true });
+    updateList(shareListId, { shared: true, myRole: 'owner' });
     setInviteUrl(buildInviteUrl(token));
   };
 
