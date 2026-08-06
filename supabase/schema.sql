@@ -26,9 +26,17 @@ CREATE TABLE IF NOT EXISTS public.todos (
   pinned BOOLEAN DEFAULT FALSE,
   recurrence JSONB,
   parent_recurring_id TEXT,
+  duration_minutes INT,
+  start_time TEXT,
+  tags TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration helper for existing projects (safe to re-run):
+-- ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS duration_minutes INT;
+-- ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS start_time TEXT;
+-- ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS public.checklists (
   id TEXT PRIMARY KEY,

@@ -11,11 +11,13 @@ import { WeekView } from '@/components/WeekView';
 import { ShortcutsModal } from '@/components/ShortcutsModal';
 import { ReminderListener } from '@/components/ReminderListener';
 import { AuthModal } from '@/components/AuthModal';
+import { BulkActionBar } from '@/components/BulkActionBar';
+import { TimeBlockingGrid } from '@/components/TimeBlockingGrid';
 import { getTodayISO, isOverdue } from '@/lib/dates';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { fetchUserDataFromSupabase } from '@/lib/sync';
 import { useRealtimeSync } from '@/lib/useRealtimeSync';
-import { Sparkles, CheckCircle2, ListTodo } from 'lucide-react';
+import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 export default function HomePage() {
   const {
@@ -24,10 +26,10 @@ export default function HomePage() {
     isHydrated,
     activeView,
     todos,
-    lists,
-    selectedTodoId,
     statusFilter,
     searchQuery,
+    activeTagFilter,
+    todaySubView,
     setUser,
     setSyncStatus,
   } = useAppStore();
@@ -94,7 +96,9 @@ export default function HomePage() {
   if (activeView === 'inbox') {
     viewFilteredTodos = todos.filter((t) => !t.dueDate && !t.listId);
   } else if (activeView === 'today') {
-    viewFilteredTodos = todos.filter((t) => t.dueDate === today || isOverdue(t.dueDate, t.completed));
+    viewFilteredTodos = todos.filter(
+      (t) => t.dueDate === today || isOverdue(t.dueDate, t.completed)
+    );
   } else if (activeView === 'upcoming') {
     viewFilteredTodos = todos.filter((t) => t.dueDate && t.dueDate > today);
   } else if (activeView === 'week') {
@@ -110,8 +114,14 @@ export default function HomePage() {
     viewFilteredTodos = viewFilteredTodos.filter(
       (t) =>
         t.title.toLowerCase().includes(q) ||
-        (t.notes && t.notes.toLowerCase().includes(q))
+        (t.notes && t.notes.toLowerCase().includes(q)) ||
+        (t.tags || []).some((tag) => tag.includes(q.replace(/^#/, '')))
     );
+  }
+
+  // Filter by active tag
+  if (activeTagFilter) {
+    viewFilteredTodos = viewFilteredTodos.filter((t) => (t.tags || []).includes(activeTagFilter));
   }
 
   // Filter by status tab (active / completed / all)
@@ -123,10 +133,18 @@ export default function HomePage() {
   }
 
   // Split into buckets
-  const overdueTodos = statusFilteredTodos.filter((t) => !t.completed && isOverdue(t.dueDate, t.completed));
-  const pinnedTodos = statusFilteredTodos.filter((t) => t.pinned && !isOverdue(t.dueDate, t.completed) && !t.completed);
-  const activeUnpinnedTodos = statusFilteredTodos.filter((t) => !t.pinned && !isOverdue(t.dueDate, t.completed) && !t.completed);
+  const overdueTodos = statusFilteredTodos.filter(
+    (t) => !t.completed && isOverdue(t.dueDate, t.completed)
+  );
+  const pinnedTodos = statusFilteredTodos.filter(
+    (t) => t.pinned && !isOverdue(t.dueDate, t.completed) && !t.completed
+  );
+  const activeUnpinnedTodos = statusFilteredTodos.filter(
+    (t) => !t.pinned && !isOverdue(t.dueDate, t.completed) && !t.completed
+  );
   const completedTodos = statusFilteredTodos.filter((t) => t.completed);
+
+  const showPlanner = activeView === 'today' && todaySubView === 'planner';
 
   return (
     <div className="flex h-screen w-full bg-amber-50/20 text-stone-900 overflow-hidden bg-grain">
@@ -144,6 +162,8 @@ export default function HomePage() {
           {/* If Week View is Active */}
           {activeView === 'week' ? (
             <WeekView />
+          ) : showPlanner ? (
+            <TimeBlockingGrid />
           ) : (
             /* Standard View Task Buckets */
             <div className="space-y-6">
@@ -163,7 +183,7 @@ export default function HomePage() {
 
               {/* Active Focus Tasks Section */}
               <TodoGroup
-                title={activeView === 'today' ? "Today's Focus" : "Tasks"}
+                title={activeView === 'today' ? "Today's Focus" : 'Tasks'}
                 todos={activeUnpinnedTodos}
                 badgeColor="bg-amber-100 text-amber-900"
               />
@@ -187,7 +207,9 @@ export default function HomePage() {
                       All clear for now
                     </h4>
                     <p className="text-xs text-stone-500 max-w-xs mx-auto mt-1 font-medium">
-                      No tasks found in this view. Capture a new task above or press <kbd className="font-mono bg-stone-100 px-1 border rounded">N</kbd> to get started.
+                      No tasks found in this view. Capture a new task above or press{' '}
+                      <kbd className="font-mono bg-stone-100 px-1 border rounded">N</kbd> to get
+                      started.
                     </p>
                   </div>
                 </div>
@@ -204,6 +226,7 @@ export default function HomePage() {
       <ShortcutsModal />
       <ReminderListener />
       <AuthModal />
+      <BulkActionBar />
     </div>
   );
 }

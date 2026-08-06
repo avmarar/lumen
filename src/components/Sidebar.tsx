@@ -1,21 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Inbox, 
-  Sun, 
-  CalendarDays, 
-  CalendarRange, 
-  Plus, 
-  Trash2, 
-  Check, 
-  HelpCircle,
+import React, { useState } from 'react';
+import {
+  Inbox,
+  Sun,
+  CalendarDays,
+  CalendarRange,
+  Plus,
+  Trash2,
   Bell,
   X,
   Sparkles,
   User,
-  CloudCheck,
-  CloudOff
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { getTodayISO, isOverdue } from '@/lib/dates';
@@ -40,18 +36,20 @@ export function Sidebar() {
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#D97706');
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
-
-  useEffect(() => {
-    setNotifPermission(getNotificationPermission());
-  }, []);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(() =>
+    typeof window !== 'undefined' ? getNotificationPermission() : 'default'
+  );
 
   const today = getTodayISO();
 
   // Counts
   const inboxCount = todos.filter((t) => !t.completed && !t.dueDate && !t.listId).length;
-  const todayCount = todos.filter((t) => !t.completed && (t.dueDate === today || isOverdue(t.dueDate, t.completed))).length;
-  const overdueCount = todos.filter((t) => !t.completed && isOverdue(t.dueDate, t.completed)).length;
+  const todayCount = todos.filter(
+    (t) => !t.completed && (t.dueDate === today || isOverdue(t.dueDate, t.completed))
+  ).length;
+  const overdueCount = todos.filter(
+    (t) => !t.completed && isOverdue(t.dueDate, t.completed)
+  ).length;
   const upcomingCount = todos.filter((t) => !t.completed && t.dueDate && t.dueDate > today).length;
 
   const handleAddListSubmit = (e: React.FormEvent) => {
@@ -82,7 +80,9 @@ export function Sidebar() {
             <h1 className="font-serif text-xl tracking-tight font-semibold text-stone-100 flex items-center gap-1.5">
               Lumen
             </h1>
-            <p className="text-[10px] text-stone-400 uppercase tracking-widest font-medium">Calm Planner</p>
+            <p className="text-[10px] text-stone-400 uppercase tracking-widest font-medium">
+              Calm Planner
+            </p>
           </div>
         </div>
 
@@ -116,8 +116,8 @@ export function Sidebar() {
               syncStatus === 'synced'
                 ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60'
                 : syncStatus === 'syncing'
-                ? 'bg-amber-950/80 text-amber-400 border-amber-800/60'
-                : 'bg-stone-800 text-stone-400 border-stone-700'
+                  ? 'bg-amber-950/80 text-amber-400 border-amber-800/60'
+                  : 'bg-stone-800 text-stone-400 border-stone-700'
             }`}
           >
             {syncStatus === 'synced' ? 'Synced' : syncStatus === 'syncing' ? 'Syncing' : 'Sync'}
@@ -136,7 +136,9 @@ export function Sidebar() {
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <Sun className={`w-4 h-4 ${activeView === 'today' ? 'text-amber-400' : 'text-amber-500/80'}`} />
+            <Sun
+              className={`w-4 h-4 ${activeView === 'today' ? 'text-amber-400' : 'text-amber-500/80'}`}
+            />
             <span>Today</span>
           </div>
           <div className="flex items-center gap-1">
@@ -160,7 +162,9 @@ export function Sidebar() {
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <Inbox className={`w-4 h-4 ${activeView === 'inbox' ? 'text-amber-400' : 'text-stone-400'}`} />
+            <Inbox
+              className={`w-4 h-4 ${activeView === 'inbox' ? 'text-amber-400' : 'text-stone-400'}`}
+            />
             <span>Inbox</span>
           </div>
           {inboxCount > 0 && (
@@ -179,7 +183,9 @@ export function Sidebar() {
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <CalendarDays className={`w-4 h-4 ${activeView === 'upcoming' ? 'text-amber-400' : 'text-stone-400'}`} />
+            <CalendarDays
+              className={`w-4 h-4 ${activeView === 'upcoming' ? 'text-amber-400' : 'text-stone-400'}`}
+            />
             <span>Upcoming</span>
           </div>
           {upcomingCount > 0 && (
@@ -198,7 +204,9 @@ export function Sidebar() {
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <CalendarRange className={`w-4 h-4 ${activeView === 'week' ? 'text-amber-400' : 'text-stone-400'}`} />
+            <CalendarRange
+              className={`w-4 h-4 ${activeView === 'week' ? 'text-amber-400' : 'text-stone-400'}`}
+            />
             <span>Week Planner</span>
           </div>
         </button>
@@ -220,7 +228,10 @@ export function Sidebar() {
         </div>
 
         {isAddingList && (
-          <form onSubmit={handleAddListSubmit} className="p-2 bg-stone-800/80 rounded-lg border border-stone-700/60 mb-2 space-y-2">
+          <form
+            onSubmit={handleAddListSubmit}
+            className="p-2 bg-stone-800/80 rounded-lg border border-stone-700/60 mb-2 space-y-2"
+          >
             <input
               type="text"
               placeholder="List name..."
@@ -327,11 +338,10 @@ export function Sidebar() {
 
         <button
           onClick={() => setIsShortcutsOpen(true)}
-          className="p-1.5 text-stone-400 hover:text-amber-400 hover:bg-stone-800 rounded transition flex items-center gap-1"
+          className="p-1.5 text-stone-400 hover:text-amber-400 hover:bg-stone-800 rounded transition"
           title="Keyboard shortcuts (?)"
         >
-          <HelpCircle className="w-4 h-4" />
-          <span className="font-mono text-[10px] bg-stone-800 border border-stone-700 px-1 rounded text-stone-300">
+          <span className="font-mono text-[10px] bg-stone-800 border border-stone-700 px-1.5 py-0.5 rounded text-stone-300">
             ?
           </span>
         </button>
@@ -342,9 +352,7 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop rail */}
-      <div className="hidden md:block h-screen sticky top-0 flex-shrink-0">
-        {content}
-      </div>
+      <div className="hidden md:block h-screen sticky top-0 flex-shrink-0">{content}</div>
 
       {/* Mobile drawer */}
       {isMobileSidebarOpen && (

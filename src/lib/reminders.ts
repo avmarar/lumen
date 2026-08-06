@@ -16,7 +16,11 @@ export function getNotificationPermission(): NotificationPermission {
 }
 
 export function triggerBrowserNotification(title: string, body?: string) {
-  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+  if (
+    typeof window !== 'undefined' &&
+    'Notification' in window &&
+    Notification.permission === 'granted'
+  ) {
     try {
       new Notification(title, {
         body: body || 'Reminder from Lumen',

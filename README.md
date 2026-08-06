@@ -21,7 +21,7 @@
   - `Esc`: Close detail panel or modal
   - `?`: Toggle keyboard shortcuts guide
 - 🔒 **Local-First & Offline**: Data is stored securely on device using IndexedDB (`idb-keyval`) — instant response with no external login required.
-- 🎨 **Calm Aesthetic**: Warm serif typography (*Fraunces* + *Plus Jakarta Sans*), grain atmosphere, animated checkmark strokes, and celebratory confetti effects.
+- 🎨 **Calm Aesthetic**: Warm serif typography (_Fraunces_ + _Plus Jakarta Sans_), grain atmosphere, animated checkmark strokes, and celebratory confetti effects.
 
 ---
 
@@ -74,36 +74,51 @@ lumen/
 ### Installation
 
 1. Clone the repository and navigate into the folder:
+
    ```bash
    cd lumen
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Run the development server:
+
    ```bash
    npm run dev
    ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Code quality hooks
+
+Husky runs these checks on every commit (`npm run precommit`):
+
+1. **Format** — Prettier (`npm run format`)
+2. **Lint** — ESLint (`npm run lint`)
+3. **Build** — Next.js production build (`npm run build`)
+
+If any step fails, the commit is blocked.
+
+> **Backlog:** Add a proper local testing framework (unit/integration) and wire it into a **pre-push** hook so tests run before pushing changes.
+
 ---
 
 ## 💡 Keyboard Shortcuts
 
-| Shortcut | Description |
-| :--- | :--- |
-| <kbd>N</kbd> or <kbd>/</kbd> | Focus Quick-Add input bar |
-| <kbd>Esc</kbd> | Close task detail panel or shortcuts modal |
-| <kbd>?</kbd> | Open keyboard shortcuts guide |
-| `^today` | Set due date to Today in Quick-Add |
-| `^tomorrow` | Set due date to Tomorrow in Quick-Add |
-| `!high` | Set High priority in Quick-Add |
-| `@listName` | Assign to custom List in Quick-Add |
-| `#5pm` | Schedule reminder alert for 5:00 PM |
+| Shortcut                     | Description                                |
+| :--------------------------- | :----------------------------------------- |
+| <kbd>N</kbd> or <kbd>/</kbd> | Focus Quick-Add input bar                  |
+| <kbd>Esc</kbd>               | Close task detail panel or shortcuts modal |
+| <kbd>?</kbd>                 | Open keyboard shortcuts guide              |
+| `^today`                     | Set due date to Today in Quick-Add         |
+| `^tomorrow`                  | Set due date to Tomorrow in Quick-Add      |
+| `!high`                      | Set High priority in Quick-Add             |
+| `@listName`                  | Assign to custom List in Quick-Add         |
+| `#5pm`                       | Schedule reminder alert for 5:00 PM        |
 
 ---
 

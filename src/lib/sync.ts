@@ -1,5 +1,42 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { List, Todo, ChecklistItem } from './types';
+import { List, Todo, ChecklistItem, Priority, RecurrenceRule } from './types';
+
+interface DbListRow {
+  id: string;
+  name: string;
+  color: string;
+  archived: boolean;
+  list_order: number;
+  created_at: string;
+}
+
+interface DbTodoRow {
+  id: string;
+  list_id: string | null;
+  title: string;
+  notes: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  due_date: string | null;
+  priority: Priority;
+  remind_at: string | null;
+  pinned: boolean;
+  recurrence: RecurrenceRule | null;
+  parent_recurring_id: string | null;
+  duration_minutes: number | null;
+  start_time: string | null;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbChecklistRow {
+  id: string;
+  todo_id: string;
+  title: string;
+  completed: boolean;
+  item_order: number;
+}
 
 export async function migrateLocalToSupabase(
   userId: string,
@@ -40,6 +77,9 @@ export async function migrateLocalToSupabase(
         pinned: t.pinned || false,
         recurrence: t.recurrence || null,
         parent_recurring_id: t.parentRecurringId || null,
+        duration_minutes: t.durationMinutes ?? null,
+        start_time: t.startTime ?? null,
+        tags: t.tags || [],
         created_at: t.createdAt,
         updated_at: t.updatedAt,
       }));
@@ -78,11 +118,14 @@ export async function fetchUserDataFromSupabase(userId: string): Promise<{
     ]);
 
     if (listsRes.error || todosRes.error || checklistsRes.error) {
-      console.error('Fetch cloud data error:', listsRes.error || todosRes.error || checklistsRes.error);
+      console.error(
+        'Fetch cloud data error:',
+        listsRes.error || todosRes.error || checklistsRes.error
+      );
       return null;
     }
 
-    const lists: List[] = (listsRes.data || []).map((l: any) => ({
+    const lists: List[] = ((listsRes.data || []) as DbListRow[]).map((l) => ({
       id: l.id,
       name: l.name,
       color: l.color,
@@ -91,11 +134,11 @@ export async function fetchUserDataFromSupabase(userId: string): Promise<{
       createdAt: l.created_at,
     }));
 
-    const todos: Todo[] = (todosRes.data || []).map((t: any) => ({
+    const todos: Todo[] = ((todosRes.data || []) as DbTodoRow[]).map((t) => ({
       id: t.id,
       listId: t.list_id,
       title: t.title,
-      notes: t.notes,
+      notes: t.notes ?? undefined,
       completed: t.completed,
       completedAt: t.completed_at,
       dueDate: t.due_date,
@@ -104,17 +147,22 @@ export async function fetchUserDataFromSupabase(userId: string): Promise<{
       pinned: t.pinned,
       recurrence: t.recurrence,
       parentRecurringId: t.parent_recurring_id,
+      durationMinutes: t.duration_minutes,
+      startTime: t.start_time,
+      tags: t.tags || [],
       createdAt: t.created_at,
       updatedAt: t.updated_at,
     }));
 
-    const checklists: ChecklistItem[] = (checklistsRes.data || []).map((c: any) => ({
-      id: c.id,
-      todoId: c.todo_id,
-      title: c.title,
-      completed: c.completed,
-      order: c.item_order,
-    }));
+    const checklists: ChecklistItem[] = ((checklistsRes.data || []) as DbChecklistRow[]).map(
+      (c) => ({
+        id: c.id,
+        todoId: c.todo_id,
+        title: c.title,
+        completed: c.completed,
+        order: c.item_order,
+      })
+    );
 
     return { lists, todos, checklists };
   } catch (err) {

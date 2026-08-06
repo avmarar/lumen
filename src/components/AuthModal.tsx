@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Lock, Mail, Key, Sparkles, AlertCircle, CheckCircle2, User } from 'lucide-react';
+import { X, Mail, Key, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { migrateLocalToSupabase, fetchUserDataFromSupabase } from '@/lib/sync';
@@ -34,7 +34,9 @@ export function AuthModal() {
     setSuccessMsg('');
 
     if (!isSupabaseConfigured || !supabase) {
-      setErrorMsg('Supabase credentials are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.');
+      setErrorMsg(
+        'Supabase credentials are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.'
+      );
       return;
     }
 
@@ -50,7 +52,7 @@ export function AuthModal() {
         if (error) {
           setErrorMsg(error.message);
         } else if (data.user) {
-          setUser(data.user as any);
+          setUser(data.user);
           setSyncStatus('syncing');
           // Migrate local IndexedDB items to user account
           await migrateLocalToSupabase(data.user.id, lists, todos, checklists);
@@ -67,7 +69,7 @@ export function AuthModal() {
         if (error) {
           setErrorMsg(error.message);
         } else if (data.user) {
-          setUser(data.user as any);
+          setUser(data.user);
           setSyncStatus('syncing');
 
           // Fetch user cloud data
@@ -84,8 +86,9 @@ export function AuthModal() {
           setTimeout(() => setIsAuthModalOpen(false), 1200);
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -129,7 +132,15 @@ export function AuthModal() {
               <div>
                 <p className="font-semibold">Local-First Guest Mode Active</p>
                 <p className="mt-0.5 text-amber-800/80">
-                  To enable Supabase Auth & Multi-Device Sync, set your <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">NEXT_PUBLIC_SUPABASE_URL</code> and <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in environment variables.
+                  To enable Supabase Auth & Multi-Device Sync, set your{' '}
+                  <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">
+                    NEXT_PUBLIC_SUPABASE_URL
+                  </code>{' '}
+                  and{' '}
+                  <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">
+                    NEXT_PUBLIC_SUPABASE_ANON_KEY
+                  </code>{' '}
+                  in environment variables.
                 </p>
               </div>
             </div>
@@ -169,7 +180,9 @@ export function AuthModal() {
                     setErrorMsg('');
                   }}
                   className={`flex-1 py-1.5 rounded-lg transition ${
-                    mode === 'login' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                    mode === 'login'
+                      ? 'bg-white text-stone-900 shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
                   }`}
                 >
                   Sign In
@@ -181,7 +194,9 @@ export function AuthModal() {
                     setErrorMsg('');
                   }}
                   className={`flex-1 py-1.5 rounded-lg transition ${
-                    mode === 'signup' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+                    mode === 'signup'
+                      ? 'bg-white text-stone-900 shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
                   }`}
                 >
                   Register
@@ -243,7 +258,11 @@ export function AuthModal() {
                 disabled={loading || !isSupabaseConfigured}
                 className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading ? 'Connecting...' : mode === 'login' ? 'Sign In' : 'Create Account & Sync Tasks'}
+                {loading
+                  ? 'Connecting...'
+                  : mode === 'login'
+                    ? 'Sign In'
+                    : 'Create Account & Sync Tasks'}
               </button>
             </form>
           )}
