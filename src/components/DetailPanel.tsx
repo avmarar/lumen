@@ -1,7 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Plus, Tag, CheckSquare, Bell, Repeat, Timer } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Plus,
+  Tag,
+  CheckSquare,
+  Bell,
+  Repeat,
+  Timer,
+  Focus,
+  MessageSquare,
+  User,
+} from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import {
   getTodayISO,
@@ -11,6 +23,8 @@ import {
   getTomorrowISO,
 } from '@/lib/dates';
 import { Priority, RecurrenceFrequency } from '@/lib/types';
+import { fetchListMembers } from '@/lib/listShare';
+import { ListMember } from '@/lib/types';
 
 export function DetailPanel() {
   const {
@@ -25,13 +39,34 @@ export function DetailPanel() {
     toggleChecklistItem,
     deleteChecklistItem,
     updateChecklistItem,
+    comments,
+    addComment,
+    deleteComment,
+    startFocus,
+    user,
+    canEditList,
   } = useAppStore();
 
   const [newChecklistTitle, setNewChecklistTitle] = useState('');
   const [customRemindDateTime, setCustomRemindDateTime] = useState('');
   const [tagInput, setTagInput] = useState('');
+  const [commentBody, setCommentBody] = useState('');
+  const [members, setMembers] = useState<ListMember[]>([]);
 
   const todo = todos.find((t) => t.id === selectedTodoId);
+  const canEdit = todo ? canEditList(todo.listId) : true;
+  const listIdForMembers = todo?.listId && user ? todo.listId : null;
+
+  useEffect(() => {
+    if (!listIdForMembers) return;
+    let cancelled = false;
+    void fetchListMembers(listIdForMembers).then((rows) => {
+      if (!cancelled) setMembers(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [listIdForMembers]);
 
   // Close panel on Esc key
   useEffect(() => {
@@ -46,9 +81,13 @@ export function DetailPanel() {
 
   if (!todo) return null;
 
+  const activeMembers = listIdForMembers ? members : [];
   const todoChecklists = checklists
     .filter((c) => c.todoId === todo.id)
     .sort((a, b) => a.order - b.order);
+  const todoComments = comments
+    .filter((c) => c.todoId === todo.id)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const completedCount = todoChecklists.filter((c) => c.completed).length;
   const progressPercent =
@@ -160,10 +199,20 @@ export function DetailPanel() {
         </div>
 
         <div className="flex items-center gap-1">
+          {!todo.completed && canEdit && (
+            <button
+              onClick={() => startFocus(todo.id)}
+              className="p-1.5 text-stone-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition"
+              title="Start focus"
+            >
+              <Focus className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => deleteTodo(todo.id)}
             className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
             title="Delete task"
+            disabled={!canEdit}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -479,6 +528,89 @@ export function DetailPanel() {
               className="flex-1 text-xs font-medium text-stone-800 placeholder:text-stone-400 bg-transparent focus:outline-none py-1"
             />
           </form>
+        </div>
+
+        {/* Assignee */}
+        {user && todo.listId && (
+          <div className="space-y-2">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1">
+              <User className="w-3 h-3" /> Assignee
+            </label>
+            <select
+              value={todo.assigneeId || ''}
+              disabled={!canEdit}
+              onChange={(e) => updateTodo(todo.id, { assigneeId: e.target.value || null })}
+              className="w-full text-xs font-medium bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-2"
+            >
+              <option value="">Unassigned</option>
+              <option value={user.id}>Me</option>
+              {activeMembers
+                .filter((m) => m.userId !== user.id)
+                .map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.userId.slice(0, 8)}…
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
+
+        {/* Comments */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1">
+            <MessageSquare className="w-3 h-3" /> Comments
+          </label>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {todoComments.length === 0 && (
+              <p className="text-[11px] text-stone-400 italic">No comments yet.</p>
+            )}
+            {todoComments.map((c) => (
+              <div
+                key={c.id}
+                className="text-xs bg-stone-50 border border-stone-100 rounded-lg p-2"
+              >
+                <div className="flex justify-between gap-2 mb-1">
+                  <span className="font-mono text-[10px] text-stone-400">
+                    {c.userId.slice(0, 8)}…
+                  </span>
+                  {user?.id === c.userId && (
+                    <button
+                      type="button"
+                      onClick={() => deleteComment(c.id)}
+                      className="text-stone-400 hover:text-rose-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-stone-800 whitespace-pre-wrap">{c.body}</p>
+              </div>
+            ))}
+          </div>
+          {user && canEdit && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!commentBody.trim()) return;
+                addComment(todo.id, commentBody);
+                setCommentBody('');
+              }}
+              className="flex gap-2"
+            >
+              <input
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                placeholder="Add a comment…"
+                className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-stone-200 bg-white"
+              />
+              <button
+                type="submit"
+                className="px-2.5 py-1.5 text-xs font-semibold bg-stone-800 text-white rounded-lg"
+              >
+                Post
+              </button>
+            </form>
+          )}
         </div>
       </div>
 

@@ -10,15 +10,26 @@ import {
   Priority,
   RecurrenceRule,
   TodaySubView,
+  TodoComment,
+  FocusSession,
+  ListMemberRole,
 } from './types';
 import { getTodayISO, calculateNextDueDate } from './dates';
+import { enqueueSyncOp } from './syncQueue';
 
 const DB_STORE_KEY = 'lumen_app_data_v1';
+const SETTINGS_KEY = 'lumen_settings_v1';
 
 interface AppData {
   lists: List[];
   todos: Todo[];
   checklists: ChecklistItem[];
+  comments: TodoComment[];
+}
+
+interface AppSettings {
+  dayBudgetMinutes: number;
+  focusSession: FocusSession | null;
 }
 
 const DEFAULT_LISTS: List[] = [
@@ -29,6 +40,7 @@ const DEFAULT_LISTS: List[] = [
     archived: false,
     order: 0,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 'list-personal',
@@ -37,6 +49,7 @@ const DEFAULT_LISTS: List[] = [
     archived: false,
     order: 1,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 'list-ideas',
@@ -45,11 +58,13 @@ const DEFAULT_LISTS: List[] = [
     archived: false,
     order: 2,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
 
 function getSeedData(): AppData {
   const today = getTodayISO();
+  const now = new Date().toISOString();
 
   return {
     lists: DEFAULT_LISTS,
@@ -65,8 +80,8 @@ function getSeedData(): AppData {
         priority: 'none',
         tags: ['example'],
         durationMinutes: 15,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       },
     ],
     checklists: [
@@ -76,6 +91,7 @@ function getSeedData(): AppData {
         title: 'Explore the detail panel on the right',
         completed: false,
         order: 0,
+        updatedAt: now,
       },
       {
         id: 'check-welcome-2',
@@ -83,17 +99,24 @@ function getSeedData(): AppData {
         title: 'Delete this example when you’re ready',
         completed: false,
         order: 1,
+        updatedAt: now,
       },
     ],
+    comments: [],
   };
+}
+
+function queueIfSignedIn(getUser: () => User | null, op: Parameters<typeof enqueueSyncOp>[0]) {
+  if (!getUser()) return;
+  void enqueueSyncOp(op);
 }
 
 export interface AppStoreState {
   lists: List[];
   todos: Todo[];
   checklists: ChecklistItem[];
+  comments: TodoComment[];
 
-  // UI State
   activeView: ActiveView;
   selectedTodoId: string | null;
   statusFilter: StatusFilter;
@@ -104,20 +127,36 @@ export interface AppStoreState {
   activeTagFilter: string | null;
   selectedTodoIds: string[];
   todaySubView: TodaySubView;
+  assignedToMeFilter: boolean;
+  shareListId: string | null;
 
-  // v2 Auth & Sync State
   user: User | null;
   isAuthModalOpen: boolean;
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
+  syncToast: string | null;
 
-  // Actions
+  dayBudgetMinutes: number;
+  focusSession: FocusSession | null;
+
   hydrateStore: () => Promise<void>;
-  hydrateCloudData: (lists: List[], todos: Todo[], checklists: ChecklistItem[]) => void;
+  hydrateCloudData: (
+    lists: List[],
+    todos: Todo[],
+    checklists: ChecklistItem[],
+    comments?: TodoComment[]
+  ) => void;
+  applyMergedCloudData: (
+    lists: List[],
+    todos: Todo[],
+    checklists: ChecklistItem[],
+    comments: TodoComment[],
+    remoteWins?: number
+  ) => void;
 
-  // Navigation & Auth Actions
   setUser: (user: User | null) => void;
   setIsAuthModalOpen: (open: boolean) => void;
   setSyncStatus: (status: 'synced' | 'syncing' | 'offline' | 'error') => void;
+  setSyncToast: (msg: string | null) => void;
   setActiveView: (view: ActiveView) => void;
   setSelectedTodoId: (id: string | null) => void;
   setStatusFilter: (filter: StatusFilter) => void;
@@ -126,8 +165,10 @@ export interface AppStoreState {
   setIsMobileSidebarOpen: (open: boolean) => void;
   setActiveTagFilter: (tag: string | null) => void;
   setTodaySubView: (view: TodaySubView) => void;
+  setAssignedToMeFilter: (on: boolean) => void;
+  setShareListId: (id: string | null) => void;
+  setDayBudgetMinutes: (minutes: number) => void;
 
-  // Multi-select / Bulk
   toggleTodoSelection: (id: string) => void;
   selectAllTodos: (ids: string[]) => void;
   clearTodoSelection: () => void;
@@ -136,12 +177,11 @@ export interface AppStoreState {
   bulkCompleteTodos: (ids: string[]) => void;
   bulkAddTag: (ids: string[], tag: string) => void;
 
-  // List CRUD
   addList: (name: string, color?: string) => string;
   updateList: (id: string, updates: Partial<List>) => void;
   deleteList: (id: string) => void;
+  setListRole: (listId: string, role: ListMemberRole | undefined, shared?: boolean) => void;
 
-  // Todo CRUD
   addTodo: (data: {
     title: string;
     listId?: string | null;
@@ -153,26 +193,50 @@ export interface AppStoreState {
     durationMinutes?: number | null;
     startTime?: string | null;
     tags?: string[];
+    assigneeId?: string | null;
   }) => string;
   updateTodo: (id: string, updates: Partial<Todo>) => void;
   toggleTodoComplete: (id: string) => void;
   deleteTodo: (id: string) => void;
 
-  // Checklist CRUD
   addChecklistItem: (todoId: string, title: string) => string;
   updateChecklistItem: (id: string, updates: Partial<ChecklistItem>) => void;
   toggleChecklistItem: (id: string) => void;
   deleteChecklistItem: (id: string) => void;
   reorderChecklistItems: (todoId: string, itemIds: string[]) => void;
+
+  addComment: (todoId: string, body: string) => string;
+  deleteComment: (id: string) => void;
+  setComments: (comments: TodoComment[]) => void;
+
+  startFocus: (todoId: string) => void;
+  pauseFocus: () => void;
+  resumeFocus: () => void;
+  stopFocus: () => void;
+  completeFocus: () => void;
+
+  canEditList: (listId: string | null | undefined) => boolean;
 }
 
 export const useAppStore = create<AppStoreState>((set, get) => {
+  const persistSettings = (patch: Partial<AppSettings>) => {
+    const next: AppSettings = {
+      dayBudgetMinutes: patch.dayBudgetMinutes ?? get().dayBudgetMinutes,
+      focusSession: patch.focusSession !== undefined ? patch.focusSession : get().focusSession,
+    };
+    set(next);
+    if (typeof window !== 'undefined') {
+      setIDB(SETTINGS_KEY, next).catch(() => undefined);
+    }
+  };
+
   const persist = (data: Partial<AppData>) => {
     const currentState = get();
     const payload: AppData = {
       lists: data.lists ?? currentState.lists,
       todos: data.todos ?? currentState.todos,
       checklists: data.checklists ?? currentState.checklists,
+      comments: data.comments ?? currentState.comments,
     };
     set(payload);
     if (typeof window !== 'undefined') {
@@ -182,10 +246,13 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     }
   };
 
+  const signedIn = () => get().user;
+
   return {
     lists: [],
     todos: [],
     checklists: [],
+    comments: [],
 
     activeView: 'today',
     selectedTodoId: null,
@@ -197,16 +264,26 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     activeTagFilter: null,
     selectedTodoIds: [],
     todaySubView: 'list',
+    assignedToMeFilter: false,
+    shareListId: null,
 
     user: null,
     isAuthModalOpen: false,
     syncStatus: 'offline',
+    syncToast: null,
+
+    dayBudgetMinutes: 360,
+    focusSession: null,
 
     setUser: (user) => set({ user }),
     setIsAuthModalOpen: (isAuthModalOpen) => set({ isAuthModalOpen }),
     setSyncStatus: (syncStatus) => set({ syncStatus }),
+    setSyncToast: (syncToast) => set({ syncToast }),
     setActiveTagFilter: (activeTagFilter) => set({ activeTagFilter }),
     setTodaySubView: (todaySubView) => set({ todaySubView }),
+    setAssignedToMeFilter: (assignedToMeFilter) => set({ assignedToMeFilter }),
+    setShareListId: (shareListId) => set({ shareListId }),
+    setDayBudgetMinutes: (dayBudgetMinutes) => persistSettings({ dayBudgetMinutes }),
 
     toggleTodoSelection: (id) => {
       const current = get().selectedTodoIds;
@@ -216,45 +293,101 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     },
     selectAllTodos: (ids) => set({ selectedTodoIds: ids }),
     clearTodoSelection: () => set({ selectedTodoIds: [] }),
+
     bulkUpdateTodos: (ids, updates) => {
       const idSet = new Set(ids);
-      const todos = get().todos.map((t) =>
-        idSet.has(t.id) ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-      );
+      const now = new Date().toISOString();
+      const todos = get().todos.map((t) => {
+        if (!idSet.has(t.id)) return t;
+        const next = { ...t, ...updates, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: t.id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       persist({ todos });
       set({ selectedTodoIds: [] });
     },
+
     bulkDeleteTodos: (ids) => {
       const idSet = new Set(ids);
+      const now = new Date().toISOString();
+      for (const id of ids) {
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: id,
+          op: 'delete',
+          updatedAt: now,
+        });
+      }
+      const cascadingChecks = get().checklists.filter((c) => idSet.has(c.todoId));
+      for (const c of cascadingChecks) {
+        queueIfSignedIn(signedIn, {
+          entity: 'checklist',
+          entityId: c.id,
+          op: 'delete',
+          updatedAt: now,
+        });
+      }
+      const cascadingComments = get().comments.filter((c) => idSet.has(c.todoId));
+      for (const c of cascadingComments) {
+        queueIfSignedIn(signedIn, {
+          entity: 'comment',
+          entityId: c.id,
+          op: 'delete',
+          updatedAt: now,
+        });
+      }
       const todos = get().todos.filter((t) => !idSet.has(t.id));
       const checklists = get().checklists.filter((c) => !idSet.has(c.todoId));
+      const comments = get().comments.filter((c) => !idSet.has(c.todoId));
       const selectedTodoId =
         get().selectedTodoId && idSet.has(get().selectedTodoId!) ? null : get().selectedTodoId;
       set({ selectedTodoId, selectedTodoIds: [] });
-      persist({ todos, checklists });
+      persist({ todos, checklists, comments });
     },
+
     bulkCompleteTodos: (ids) => {
       const idSet = new Set(ids);
       const now = new Date().toISOString();
-      const todos = get().todos.map((t) =>
-        idSet.has(t.id) ? { ...t, completed: true, completedAt: now, updatedAt: now } : t
-      );
+      const todos = get().todos.map((t) => {
+        if (!idSet.has(t.id)) return t;
+        const next = { ...t, completed: true, completedAt: now, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: t.id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       persist({ todos });
       set({ selectedTodoIds: [] });
     },
+
     bulkAddTag: (ids, tag) => {
       const normalized = tag.replace(/^#/, '').trim().toLowerCase();
       if (!normalized) return;
       const idSet = new Set(ids);
+      const now = new Date().toISOString();
       const todos = get().todos.map((t) => {
         if (!idSet.has(t.id)) return t;
         const existing = t.tags || [];
         if (existing.includes(normalized)) return t;
-        return {
-          ...t,
-          tags: [...existing, normalized],
-          updatedAt: new Date().toISOString(),
-        };
+        const next = { ...t, tags: [...existing, normalized], updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: t.id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
       });
       persist({ todos });
       set({ selectedTodoIds: [] });
@@ -263,12 +396,18 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     hydrateStore: async () => {
       if (get().isHydrated) return;
       try {
-        const stored = await getIDB<AppData>(DB_STORE_KEY);
+        const [stored, settings] = await Promise.all([
+          getIDB<AppData>(DB_STORE_KEY),
+          getIDB<AppSettings>(SETTINGS_KEY),
+        ]);
         if (stored && Array.isArray(stored.lists) && Array.isArray(stored.todos)) {
           set({
             lists: stored.lists,
             todos: stored.todos,
             checklists: stored.checklists || [],
+            comments: stored.comments || [],
+            dayBudgetMinutes: settings?.dayBudgetMinutes ?? 360,
+            focusSession: settings?.focusSession ?? null,
             isHydrated: true,
           });
         } else {
@@ -277,6 +416,7 @@ export const useAppStore = create<AppStoreState>((set, get) => {
             lists: seed.lists,
             todos: seed.todos,
             checklists: seed.checklists,
+            comments: [],
             isHydrated: true,
           });
           await setIDB(DB_STORE_KEY, seed);
@@ -288,13 +428,21 @@ export const useAppStore = create<AppStoreState>((set, get) => {
           lists: seed.lists,
           todos: seed.todos,
           checklists: seed.checklists,
+          comments: [],
           isHydrated: true,
         });
       }
     },
 
-    hydrateCloudData: (lists, todos, checklists) => {
-      persist({ lists, todos, checklists });
+    hydrateCloudData: (lists, todos, checklists, comments) => {
+      persist({ lists, todos, checklists, comments: comments ?? get().comments });
+    },
+
+    applyMergedCloudData: (lists, todos, checklists, comments, remoteWins = 0) => {
+      persist({ lists, todos, checklists, comments });
+      if (remoteWins > 0) {
+        set({ syncToast: 'Updated from another device' });
+      }
     },
 
     setActiveView: (activeView) =>
@@ -305,37 +453,84 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     setIsShortcutsOpen: (isShortcutsOpen) => set({ isShortcutsOpen }),
     setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
 
-    // Lists
     addList: (name, color = '#6B7280') => {
       const id = `list-${Date.now()}`;
+      const now = new Date().toISOString();
       const newList: List = {
         id,
         name: name.trim(),
         color,
         archived: false,
         order: get().lists.length,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
+        ownerId: get().user?.id,
+        myRole: 'owner',
       };
+      queueIfSignedIn(signedIn, {
+        entity: 'list',
+        entityId: id,
+        op: 'upsert',
+        payload: newList,
+        updatedAt: now,
+      });
       persist({ lists: [...get().lists, newList] });
       return id;
     },
 
     updateList: (id, updates) => {
-      const lists = get().lists.map((l) => (l.id === id ? { ...l, ...updates } : l));
+      const now = new Date().toISOString();
+      const lists = get().lists.map((l) => {
+        if (l.id !== id) return l;
+        const next = { ...l, ...updates, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'list',
+          entityId: id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       persist({ lists });
     },
 
     deleteList: (id) => {
+      const now = new Date().toISOString();
+      queueIfSignedIn(signedIn, {
+        entity: 'list',
+        entityId: id,
+        op: 'delete',
+        updatedAt: now,
+      });
       const lists = get().lists.filter((l) => l.id !== id);
-      const todos = get().todos.map((t) => (t.listId === id ? { ...t, listId: null } : t));
+      const todos = get().todos.map((t) => {
+        if (t.listId !== id) return t;
+        const next = { ...t, listId: null, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: t.id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       const activeView = get().activeView === id ? 'inbox' : get().activeView;
       set({ activeView });
       persist({ lists, todos });
     },
 
-    // Todos
+    setListRole: (listId, role, shared) => {
+      const lists = get().lists.map((l) =>
+        l.id === listId ? { ...l, myRole: role, shared: shared ?? l.shared } : l
+      );
+      set({ lists });
+    },
+
     addTodo: (data) => {
       const id = `todo-${Date.now()}`;
+      const now = new Date().toISOString();
       const newTodo: Todo = {
         id,
         listId: data.listId ?? null,
@@ -349,23 +544,35 @@ export const useAppStore = create<AppStoreState>((set, get) => {
         durationMinutes: data.durationMinutes ?? null,
         startTime: data.startTime ?? null,
         tags: data.tags || [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        assigneeId: data.assigneeId ?? null,
+        createdAt: now,
+        updatedAt: now,
       };
+      queueIfSignedIn(signedIn, {
+        entity: 'todo',
+        entityId: id,
+        op: 'upsert',
+        payload: newTodo,
+        updatedAt: now,
+      });
       persist({ todos: [newTodo, ...get().todos] });
       return id;
     },
 
     updateTodo: (id, updates) => {
-      const todos = get().todos.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              ...updates,
-              updatedAt: new Date().toISOString(),
-            }
-          : t
-      );
+      const now = new Date().toISOString();
+      const todos = get().todos.map((t) => {
+        if (t.id !== id) return t;
+        const next = { ...t, ...updates, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       persist({ todos });
     },
 
@@ -375,24 +582,29 @@ export const useAppStore = create<AppStoreState>((set, get) => {
       if (!targetTodo) return;
 
       const nextCompleted = !targetTodo.completed;
+      const now = new Date().toISOString();
       let newTodos = currentTodos.map((t) => {
-        if (t.id === id) {
-          return {
-            ...t,
-            completed: nextCompleted,
-            completedAt: nextCompleted ? new Date().toISOString() : null,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return t;
+        if (t.id !== id) return t;
+        const next = {
+          ...t,
+          completed: nextCompleted,
+          completedAt: nextCompleted ? now : null,
+          updatedAt: now,
+        };
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
       });
 
       let newChecklists = get().checklists;
 
-      // If marking a recurring task as completed, auto-spawn the next instance
       if (nextCompleted && targetTodo.recurrence) {
         const nextDueDate = calculateNextDueDate(targetTodo.dueDate, targetTodo.recurrence);
-
         let nextRemindAt: string | null = null;
         if (targetTodo.remindAt) {
           const timePart = targetTodo.remindAt.split('T')[1] || '09:00:00';
@@ -414,21 +626,39 @@ export const useAppStore = create<AppStoreState>((set, get) => {
           durationMinutes: targetTodo.durationMinutes ?? null,
           startTime: null,
           tags: targetTodo.tags || [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          assigneeId: targetTodo.assigneeId ?? null,
+          createdAt: now,
+          updatedAt: now,
         };
 
+        queueIfSignedIn(signedIn, {
+          entity: 'todo',
+          entityId: spawnedTodoId,
+          op: 'upsert',
+          payload: spawnedTodo,
+          updatedAt: now,
+        });
         newTodos = [spawnedTodo, ...newTodos];
 
-        // Copy checklist items to spawned todo as uncompleted subtasks
         const sourceChecklists = newChecklists.filter((c) => c.todoId === targetTodo.id);
-        const copiedChecklists: ChecklistItem[] = sourceChecklists.map((c, idx) => ({
-          id: `check-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
-          todoId: spawnedTodoId,
-          title: c.title,
-          completed: false,
-          order: c.order,
-        }));
+        const copiedChecklists: ChecklistItem[] = sourceChecklists.map((c, idx) => {
+          const item: ChecklistItem = {
+            id: `check-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+            todoId: spawnedTodoId,
+            title: c.title,
+            completed: false,
+            order: c.order,
+            updatedAt: now,
+          };
+          queueIfSignedIn(signedIn, {
+            entity: 'checklist',
+            entityId: item.id,
+            op: 'upsert',
+            payload: item,
+            updatedAt: now,
+          });
+          return item;
+        });
 
         newChecklists = [...newChecklists, ...copiedChecklists];
       }
@@ -437,17 +667,43 @@ export const useAppStore = create<AppStoreState>((set, get) => {
     },
 
     deleteTodo: (id) => {
+      const now = new Date().toISOString();
+      queueIfSignedIn(signedIn, {
+        entity: 'todo',
+        entityId: id,
+        op: 'delete',
+        updatedAt: now,
+      });
+      for (const c of get().checklists.filter((x) => x.todoId === id)) {
+        queueIfSignedIn(signedIn, {
+          entity: 'checklist',
+          entityId: c.id,
+          op: 'delete',
+          updatedAt: now,
+        });
+      }
+      for (const c of get().comments.filter((x) => x.todoId === id)) {
+        queueIfSignedIn(signedIn, {
+          entity: 'comment',
+          entityId: c.id,
+          op: 'delete',
+          updatedAt: now,
+        });
+      }
       const todos = get().todos.filter((t) => t.id !== id);
       const checklists = get().checklists.filter((c) => c.todoId !== id);
+      const comments = get().comments.filter((c) => c.todoId !== id);
       const selectedTodoId = get().selectedTodoId === id ? null : get().selectedTodoId;
       const selectedTodoIds = get().selectedTodoIds.filter((x) => x !== id);
+      const focusSession = get().focusSession?.todoId === id ? null : get().focusSession;
       set({ selectedTodoId, selectedTodoIds });
-      persist({ todos, checklists });
+      if (focusSession !== get().focusSession) persistSettings({ focusSession });
+      persist({ todos, checklists, comments });
     },
 
-    // Checklists
     addChecklistItem: (todoId, title) => {
       const id = `check-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const now = new Date().toISOString();
       const todoItems = get().checklists.filter((c) => c.todoId === todoId);
       const newItem: ChecklistItem = {
         id,
@@ -455,35 +711,182 @@ export const useAppStore = create<AppStoreState>((set, get) => {
         title: title.trim(),
         completed: false,
         order: todoItems.length,
+        updatedAt: now,
       };
+      queueIfSignedIn(signedIn, {
+        entity: 'checklist',
+        entityId: id,
+        op: 'upsert',
+        payload: newItem,
+        updatedAt: now,
+      });
       persist({ checklists: [...get().checklists, newItem] });
       return id;
     },
 
     updateChecklistItem: (id, updates) => {
-      const checklists = get().checklists.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      const now = new Date().toISOString();
+      const checklists = get().checklists.map((c) => {
+        if (c.id !== id) return c;
+        const next = { ...c, ...updates, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'checklist',
+          entityId: id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       persist({ checklists });
     },
 
     toggleChecklistItem: (id) => {
-      const checklists = get().checklists.map((c) =>
-        c.id === id ? { ...c, completed: !c.completed } : c
-      );
+      const now = new Date().toISOString();
+      const checklists = get().checklists.map((c) => {
+        if (c.id !== id) return c;
+        const next = { ...c, completed: !c.completed, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'checklist',
+          entityId: id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
+      });
       persist({ checklists });
     },
 
     deleteChecklistItem: (id) => {
-      const checklists = get().checklists.filter((c) => c.id !== id);
-      persist({ checklists });
+      const now = new Date().toISOString();
+      queueIfSignedIn(signedIn, {
+        entity: 'checklist',
+        entityId: id,
+        op: 'delete',
+        updatedAt: now,
+      });
+      persist({ checklists: get().checklists.filter((c) => c.id !== id) });
     },
 
     reorderChecklistItems: (todoId, itemIds) => {
+      const now = new Date().toISOString();
       const checklists = get().checklists.map((item) => {
         if (item.todoId !== todoId) return item;
         const newOrder = itemIds.indexOf(item.id);
-        return newOrder !== -1 ? { ...item, order: newOrder } : item;
+        if (newOrder === -1) return item;
+        const next = { ...item, order: newOrder, updatedAt: now };
+        queueIfSignedIn(signedIn, {
+          entity: 'checklist',
+          entityId: item.id,
+          op: 'upsert',
+          payload: next,
+          updatedAt: now,
+        });
+        return next;
       });
       persist({ checklists });
+    },
+
+    addComment: (todoId, body) => {
+      const user = get().user;
+      if (!user) return '';
+      const id = `comment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const now = new Date().toISOString();
+      const comment: TodoComment = {
+        id,
+        todoId,
+        userId: user.id,
+        body: body.trim(),
+        createdAt: now,
+      };
+      queueIfSignedIn(signedIn, {
+        entity: 'comment',
+        entityId: id,
+        op: 'upsert',
+        payload: comment,
+        updatedAt: now,
+      });
+      persist({ comments: [...get().comments, comment] });
+      return id;
+    },
+
+    deleteComment: (id) => {
+      const now = new Date().toISOString();
+      queueIfSignedIn(signedIn, {
+        entity: 'comment',
+        entityId: id,
+        op: 'delete',
+        updatedAt: now,
+      });
+      persist({ comments: get().comments.filter((c) => c.id !== id) });
+    },
+
+    setComments: (comments) => persist({ comments }),
+
+    startFocus: (todoId) => {
+      const todo = get().todos.find((t) => t.id === todoId);
+      if (!todo) return;
+      persistSettings({
+        focusSession: {
+          todoId,
+          startedAt: new Date().toISOString(),
+          durationMinutes:
+            todo.durationMinutes && todo.durationMinutes > 0 ? todo.durationMinutes : 25,
+          status: 'running',
+          pausedMs: 0,
+          pausedAt: null,
+        },
+      });
+    },
+
+    pauseFocus: () => {
+      const session = get().focusSession;
+      if (!session || session.status !== 'running') return;
+      persistSettings({
+        focusSession: { ...session, status: 'paused', pausedAt: new Date().toISOString() },
+      });
+    },
+
+    resumeFocus: () => {
+      const session = get().focusSession;
+      if (!session || session.status !== 'paused' || !session.pausedAt) return;
+      const extra = Date.now() - new Date(session.pausedAt).getTime();
+      persistSettings({
+        focusSession: {
+          ...session,
+          status: 'running',
+          pausedMs: session.pausedMs + extra,
+          pausedAt: null,
+        },
+      });
+    },
+
+    stopFocus: () => persistSettings({ focusSession: null }),
+
+    completeFocus: () => {
+      const session = get().focusSession;
+      if (!session) return;
+      get().toggleTodoComplete(session.todoId);
+      persistSettings({ focusSession: null });
+    },
+
+    canEditList: (listId) => {
+      if (!listId) return true; // inbox personal
+      const list = get().lists.find((l) => l.id === listId);
+      if (!list) return true;
+
+      if (list.myRole === 'viewer') return false;
+      if (list.myRole === 'owner' || list.myRole === 'editor') return true;
+
+      // Personal / unshared lists remain editable for the local owner
+      if (!list.shared) return true;
+
+      // Shared list without an explicit role: only allow if current user owns it
+      const userId = get().user?.id;
+      if (userId && list.ownerId && list.ownerId === userId) return true;
+
+      return false;
     },
   };
 });

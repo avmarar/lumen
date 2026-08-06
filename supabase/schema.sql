@@ -1,15 +1,20 @@
--- Lumen v2 Supabase PostgreSQL Database Schema
--- Run this script in the Supabase SQL Editor
+-- Lumen Supabase PostgreSQL Database Schema (cumulative)
+-- Prefer running incremental migrations for existing projects:
+--   migration_time_blocking.sql
+--   migration_calendar_feed.sql
+--   migration_sync_oplog.sql
+--   migration_shared_lists.sql
 
--- 1. Create Tables
 CREATE TABLE IF NOT EXISTS public.lists (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT NOT NULL,
   archived BOOLEAN DEFAULT FALSE,
   list_order INT DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.todos (
@@ -29,14 +34,10 @@ CREATE TABLE IF NOT EXISTS public.todos (
   duration_minutes INT,
   start_time TEXT,
   tags TEXT[] DEFAULT '{}',
+  assignee_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- Migration helper for existing projects (safe to re-run):
--- ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS duration_minutes INT;
--- ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS start_time TEXT;
--- ALTER TABLE public.todos ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS public.checklists (
   id TEXT PRIMARY KEY,
@@ -44,54 +45,48 @@ CREATE TABLE IF NOT EXISTS public.checklists (
   todo_id TEXT REFERENCES public.todos(id) ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
-  item_order INT DEFAULT 0
+  item_order INT DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Enable Row Level Security (RLS)
+CREATE TABLE IF NOT EXISTS public.list_members (
+  list_id TEXT REFERENCES public.lists(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  role TEXT CHECK (role IN ('owner', 'editor', 'viewer')) NOT NULL DEFAULT 'editor',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (list_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.list_invites (
+  id TEXT PRIMARY KEY,
+  list_id TEXT REFERENCES public.lists(id) ON DELETE CASCADE NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  email TEXT,
+  role TEXT CHECK (role IN ('editor', 'viewer')) NOT NULL DEFAULT 'editor',
+  created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.todo_comments (
+  id TEXT PRIMARY KEY,
+  todo_id TEXT REFERENCES public.todos(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- See migration_shared_lists.sql for RLS policies and helpers.
 ALTER TABLE public.lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.todos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.checklists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.list_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.list_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.todo_comments ENABLE ROW LEVEL SECURITY;
 
--- 3. RLS Policies for Lists
-CREATE POLICY "Users can view their own lists" ON public.lists
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own lists" ON public.lists
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own lists" ON public.lists
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own lists" ON public.lists
-  FOR DELETE USING (auth.uid() = user_id);
-
--- 4. RLS Policies for Todos
-CREATE POLICY "Users can view their own todos" ON public.todos
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own todos" ON public.todos
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own todos" ON public.todos
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own todos" ON public.todos
-  FOR DELETE USING (auth.uid() = user_id);
-
--- 5. RLS Policies for Checklists
-CREATE POLICY "Users can view their own checklists" ON public.checklists
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own checklists" ON public.checklists
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own checklists" ON public.checklists
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own checklists" ON public.checklists
-  FOR DELETE USING (auth.uid() = user_id);
-
--- 6. Enable Realtime Replication for Todos, Lists, Checklists
 ALTER PUBLICATION supabase_realtime ADD TABLE public.lists;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.todos;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.checklists;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.todo_comments;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.list_members;

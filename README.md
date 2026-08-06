@@ -23,6 +23,9 @@
 - 🔒 **Local-First & Offline**: Data is stored securely on device using IndexedDB (`idb-keyval`) — instant response with no external login required.
 - 📆 **Calendar Export (iCal)**: Download a `.ics` snapshot anytime, or (when signed in) subscribe via a private feed URL in Apple Calendar / Google Calendar / Outlook.
 - 📱 **Installable PWA**: Add Lumen to your home screen; the app shell is cached offline via Serwist while task data stays in IndexedDB.
+- 🔄 **Reliable cloud sync**: Signed-in changes queue locally, flush with deletes + last-write-wins merge, and surface sync errors / remote updates.
+- 👥 **Shared lists**: Invite collaborators to a list; assign tasks and comment in the detail panel.
+- ⏱️ **Focus + load**: Start a focus timer on any task; Today and Week show planned load vs a 6h day budget.
 - 🎨 **Calm Aesthetic**: Warm serif typography (_Fraunces_ + _Plus Jakarta Sans_), grain atmosphere, animated checkmark strokes, and celebratory confetti effects.
 
 ---
@@ -126,6 +129,17 @@ If any step fails, the commit is blocked.
 1. Deploy over HTTPS (or use `localhost`).
 2. In Chrome/Edge: install from the address bar, or use the **Install app** hint in the sidebar when offered.
 3. On iOS Safari: Share → **Add to Home Screen**.
+
+### Sync, shared lists & focus
+
+1. Run migrations in order (if not already applied):
+   - [`supabase/migration_sync_oplog.sql`](supabase/migration_sync_oplog.sql)
+   - [`supabase/migration_shared_lists.sql`](supabase/migration_shared_lists.sql)
+2. Sign in — mutations enqueue locally and flush to Supabase; deletes sync; conflicts toast “Updated from another device.”
+3. Open a list → **Share** → create invite link; recipient opens `/invite/[token]` while signed in.
+4. Hover a task → focus icon, or use Focus in the detail panel. Today header and Week columns show planned load vs a 6h budget.
+
+If list sync fails with RLS `42501`, run [`supabase/migration_fix_lists_rls.sql`](supabase/migration_fix_lists_rls.sql).
 
 ---
 

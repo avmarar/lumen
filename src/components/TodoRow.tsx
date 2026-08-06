@@ -12,6 +12,7 @@ import {
   Repeat,
   Tag,
   Timer,
+  Focus,
 } from 'lucide-react';
 import { Todo } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
@@ -40,7 +41,11 @@ export function TodoRow({ todo }: TodoRowProps) {
     selectedTodoIds,
     toggleTodoSelection,
     setActiveTagFilter,
+    startFocus,
+    canEditList,
   } = useAppStore();
+
+  const canEdit = canEditList(todo.listId);
 
   const isDetailSelected = selectedTodoId === todo.id;
   const isBulkSelected = selectedTodoIds.includes(todo.id);
@@ -253,6 +258,19 @@ export function TodoRow({ todo }: TodoRowProps) {
       </div>
 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!todo.completed && canEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              startFocus(todo.id);
+            }}
+            className="p-1.5 rounded-lg text-stone-400 hover:text-amber-700 hover:bg-amber-50 transition"
+            title="Start focus"
+          >
+            <Focus className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         <button
           onClick={handleTogglePin}
           className={`p-1.5 rounded-lg transition ${
