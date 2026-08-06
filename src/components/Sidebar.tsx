@@ -16,6 +16,8 @@ import {
 import { useAppStore } from '@/lib/store';
 import { getTodayISO, isOverdue } from '@/lib/dates';
 import { getNotificationPermission, requestNotificationPermission } from '@/lib/reminders';
+import { CalendarExport } from '@/components/CalendarExport';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 export function Sidebar() {
   const {
@@ -316,35 +318,41 @@ export function Sidebar() {
       </div>
 
       {/* Footbar */}
-      <div className="p-3 border-t border-stone-800/80 flex items-center justify-between text-xs text-stone-400">
-        <button
-          onClick={handleRequestNotif}
-          className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-stone-800 hover:text-stone-200 transition"
-          title={
-            notifPermission === 'granted'
-              ? 'Notifications Active'
-              : 'Click to enable reminder alerts'
-          }
-        >
-          <Bell
-            className={`w-3.5 h-3.5 ${
-              notifPermission === 'granted' ? 'text-emerald-400' : 'text-stone-500'
-            }`}
-          />
-          <span className="text-[11px]">
-            {notifPermission === 'granted' ? 'Reminders On' : 'Allow Alerts'}
-          </span>
-        </button>
+      <div className="p-3 border-t border-stone-800/80 space-y-2 text-xs text-stone-400">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleRequestNotif}
+            className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-stone-800 hover:text-stone-200 transition"
+            title={
+              notifPermission === 'granted'
+                ? 'Notifications Active'
+                : 'Click to enable reminder alerts'
+            }
+          >
+            <Bell
+              className={`w-3.5 h-3.5 ${
+                notifPermission === 'granted' ? 'text-emerald-400' : 'text-stone-500'
+              }`}
+            />
+            <span className="text-[11px]">
+              {notifPermission === 'granted' ? 'Reminders On' : 'Allow Alerts'}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setIsShortcutsOpen(true)}
-          className="p-1.5 text-stone-400 hover:text-amber-400 hover:bg-stone-800 rounded transition"
-          title="Keyboard shortcuts (?)"
-        >
-          <span className="font-mono text-[10px] bg-stone-800 border border-stone-700 px-1.5 py-0.5 rounded text-stone-300">
-            ?
-          </span>
-        </button>
+          <div className="flex items-center gap-1">
+            <CalendarExport compact />
+            <button
+              onClick={() => setIsShortcutsOpen(true)}
+              className="p-1.5 text-stone-400 hover:text-amber-400 hover:bg-stone-800 rounded transition"
+              title="Keyboard shortcuts (?)"
+            >
+              <span className="font-mono text-[10px] bg-stone-800 border border-stone-700 px-1.5 py-0.5 rounded text-stone-300">
+                ?
+              </span>
+            </button>
+          </div>
+        </div>
+        <InstallPrompt />
       </div>
     </aside>
   );

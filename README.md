@@ -21,6 +21,8 @@
   - `Esc`: Close detail panel or modal
   - `?`: Toggle keyboard shortcuts guide
 - 🔒 **Local-First & Offline**: Data is stored securely on device using IndexedDB (`idb-keyval`) — instant response with no external login required.
+- 📆 **Calendar Export (iCal)**: Download a `.ics` snapshot anytime, or (when signed in) subscribe via a private feed URL in Apple Calendar / Google Calendar / Outlook.
+- 📱 **Installable PWA**: Add Lumen to your home screen; the app shell is cached offline via Serwist while task data stays in IndexedDB.
 - 🎨 **Calm Aesthetic**: Warm serif typography (_Fraunces_ + _Plus Jakarta Sans_), grain atmosphere, animated checkmark strokes, and celebratory confetti effects.
 
 ---
@@ -31,6 +33,8 @@
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS v4
 - **State & Storage**: [Zustand](https://github.com/pmndrs/zustand) + [idb-keyval](https://github.com/jakearchibald/idb-keyval) (IndexedDB)
+- **Auth / Sync**: [Supabase](https://supabase.com) (optional)
+- **PWA**: [Serwist](https://serwist.pages.dev) (`@serwist/turbopack` for Next.js 16)
 - **Icons**: Lucide React
 - **Micro-interactions**: Canvas Confetti
 
@@ -104,6 +108,24 @@ Husky runs these checks on every commit (`npm run precommit`):
 If any step fails, the commit is blocked.
 
 > **Backlog:** Add a proper local testing framework (unit/integration) and wire it into a **pre-push** hook so tests run before pushing changes.
+
+### Calendar subscribe feed (optional)
+
+1. In Supabase SQL Editor, run [`supabase/migration_calendar_feed.sql`](supabase/migration_calendar_feed.sql).
+2. Add a **server-only** secret to `.env.local` (and Vercel):
+
+   ```env
+   SUPABASE_SECRET_KEY=your-secret-key-here
+   ```
+
+3. Sign in → open **Account & Sync** → copy the subscribe URL or use **Open in Calendar**.
+4. Guests can still use **Export .ics** from the sidebar footer (one-time download).
+
+### Install as a PWA
+
+1. Deploy over HTTPS (or use `localhost`).
+2. In Chrome/Edge: install from the address bar, or use the **Install app** hint in the sidebar when offered.
+3. On iOS Safari: Share → **Add to Home Screen**.
 
 ---
 
