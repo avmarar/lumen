@@ -25,9 +25,13 @@ export function SyncToast() {
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[80] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed bottom-safe left-1/2 -translate-x-1/2 z-[80] flex flex-col items-center gap-2 pointer-events-none">
       {syncToast && (
-        <div className="pointer-events-auto px-4 py-2 rounded-xl bg-stone-900 text-stone-100 text-sm shadow-lg border border-stone-700">
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-auto px-4 py-2 rounded-xl bg-stone-900 text-stone-100 text-sm shadow-lg border border-stone-700"
+        >
           {syncToast}
         </div>
       )}

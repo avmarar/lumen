@@ -51,15 +51,22 @@ export function ReminderListener() {
   if (!activeToast) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 max-w-sm w-full bg-stone-900 text-stone-100 p-4 rounded-2xl shadow-2xl border border-amber-500/40 flex items-start gap-3 animate-in slide-in-from-bottom-5 duration-300">
-      <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 border border-amber-500/30">
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="fixed bottom-safe right-4 z-50 max-w-sm w-[calc(100%-2rem)] sm:w-full bg-stone-900 text-stone-100 p-4 rounded-2xl shadow-2xl border border-amber-500/40 flex items-start gap-3 animate-in slide-in-from-bottom-5 duration-300"
+    >
+      <div
+        className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 border border-amber-500/30"
+        aria-hidden="true"
+      >
         <Bell className="w-5 h-5" />
       </div>
 
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center gap-1">
-            <Sparkles className="w-3 h-3" /> Reminder Alert
+            <Sparkles className="w-3 h-3" aria-hidden="true" /> Reminder Alert
           </span>
           <span className="text-[10px] text-stone-400">
             {new Date(activeToast.remindAt).toLocaleTimeString([], {
@@ -70,21 +77,24 @@ export function ReminderListener() {
         </div>
         <p className="text-xs font-semibold text-stone-100 truncate">{activeToast.title}</p>
         <button
+          type="button"
           onClick={() => {
             setSelectedTodoId(activeToast.id);
             setActiveToast(null);
           }}
           className="text-xs text-amber-400 hover:underline font-medium pt-1 block"
         >
-          View task details &rarr;
+          View task details
         </button>
       </div>
 
       <button
+        type="button"
         onClick={() => setActiveToast(null)}
-        className="p-1 text-stone-400 hover:text-stone-200 rounded-lg hover:bg-stone-800"
+        className="p-1.5 text-stone-400 hover:text-stone-200 rounded-lg hover:bg-stone-800"
+        aria-label="Dismiss reminder"
       >
-        <X className="w-4 h-4" />
+        <X className="w-4 h-4" aria-hidden="true" />
       </button>
     </div>
   );

@@ -142,7 +142,7 @@ export function QuickAdd() {
         }`}
       >
         <div className="flex items-center px-4 py-3">
-          <div className="text-amber-600 flex-shrink-0 mr-3">
+          <div className="text-amber-600 flex-shrink-0 mr-3" aria-hidden="true">
             <Plus className="w-5 h-5" />
           </div>
 
@@ -153,18 +153,25 @@ export function QuickAdd() {
             onChange={(e) => setText(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="Capture… ^next fri !high @work #design ~30m #5pm"
-            className="w-full bg-transparent text-stone-900 placeholder:text-stone-400 text-sm font-medium focus:outline-none"
+            placeholder="Add a task…"
+            className="w-full bg-transparent text-stone-900 placeholder:text-stone-600 text-sm font-medium focus:outline-none"
+            aria-label="Add a task. Tokens: ^date !priority @list #tag ~duration"
           />
 
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-            <kbd className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-mono text-stone-400 bg-stone-100 border border-stone-200 rounded-md">
+            <span
+              className="hidden sm:inline text-[10px] font-mono text-stone-500 truncate max-w-[11rem] md:max-w-none"
+              title="^date !priority @list #tag ~duration #time"
+            >
+              ^date !pri @list #tag
+            </span>
+            <kbd className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-mono text-stone-600 bg-stone-100 border border-stone-200 rounded-md">
               N
             </kbd>
             <button
               type="submit"
               disabled={!text.trim()}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-40 disabled:hover:bg-amber-600 flex items-center gap-1"
+              className="min-h-11 px-3 bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-40 disabled:hover:bg-amber-700 flex items-center gap-1"
             >
               <span>Add</span>
             </button>
@@ -173,13 +180,13 @@ export function QuickAdd() {
 
         {hasPreview && (
           <div className="px-4 py-2 bg-stone-50/80 border-t border-stone-100 rounded-b-xl flex items-center gap-2 text-xs flex-wrap">
-            <span className="text-stone-400 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" /> Auto-tags:
+            <span className="text-stone-500 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-500" aria-hidden="true" /> Auto-tags:
             </span>
 
             {parsedDueDate && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-900 font-medium">
-                <Calendar className="w-3 h-3 text-amber-600" />
+                <Calendar className="w-3 h-3 text-amber-600" aria-hidden="true" />
                 {formatFriendlyDate(parsedDueDate)}
               </span>
             )}
@@ -194,7 +201,7 @@ export function QuickAdd() {
                       : 'bg-stone-200 text-stone-800'
                 }`}
               >
-                <AlertCircle className="w-3 h-3" />
+                <AlertCircle className="w-3 h-3" aria-hidden="true" />
                 {parsedPriority} Priority
               </span>
             )}
@@ -204,6 +211,7 @@ export function QuickAdd() {
                 <span
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: selectedListObj.color }}
+                  aria-hidden="true"
                 />
                 {selectedListObj.name}
               </span>
@@ -211,7 +219,7 @@ export function QuickAdd() {
 
             {parsedDuration && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 font-medium">
-                <Timer className="w-3 h-3 text-teal-600" />
+                <Timer className="w-3 h-3 text-teal-600" aria-hidden="true" />
                 {formatDuration(parsedDuration)}
               </span>
             )}
@@ -221,13 +229,13 @@ export function QuickAdd() {
                 key={tag}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 font-medium"
               >
-                <Tag className="w-3 h-3 text-indigo-600" />#{tag}
+                <Tag className="w-3 h-3 text-indigo-600" aria-hidden="true" />#{tag}
               </span>
             ))}
 
             {parsedReminderTime && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 font-medium">
-                <Clock className="w-3 h-3 text-blue-600" />
+                <Clock className="w-3 h-3 text-blue-600" aria-hidden="true" />
                 Reminder{' '}
                 {new Date(parsedReminderTime).toLocaleTimeString([], {
                   hour: 'numeric',

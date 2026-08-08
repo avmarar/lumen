@@ -10,6 +10,7 @@ import {
   removeListMember,
 } from '@/lib/listShare';
 import { ListMember } from '@/lib/types';
+import { useDialog } from '@/lib/useDialog';
 
 export function ShareListModal() {
   const shareListId = useAppStore((s) => s.shareListId);
@@ -25,6 +26,9 @@ export function ShareListModal() {
   const [loading, setLoading] = useState(false);
 
   const list = lists.find((l) => l.id === shareListId);
+  const open = Boolean(shareListId && list);
+  const close = () => setShareListId(null);
+  const { containerRef, titleId, descId } = useDialog({ open, onClose: close });
 
   useEffect(() => {
     if (!shareListId) return;
@@ -64,23 +68,40 @@ export function ShareListModal() {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-stone-950/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white border border-stone-200 shadow-xl overflow-hidden">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="Close dialog"
+        onClick={close}
+      />
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        tabIndex={-1}
+        className="relative w-full max-w-md rounded-2xl bg-white border border-stone-200 shadow-xl overflow-hidden outline-none"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
           <div>
-            <h2 className="font-serif text-lg text-stone-900">Share list</h2>
+            <h2 id={titleId} className="font-serif text-lg text-stone-900">
+              Share list
+            </h2>
             <p className="text-xs text-stone-500">{list.name}</p>
           </div>
           <button
             type="button"
-            onClick={() => setShareListId(null)}
+            onClick={close}
             className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500"
+            aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-          <p className="text-sm text-stone-600">
+          <p id={descId} className="text-sm text-stone-600">
             Create an invite link. Recipients must be signed in to accept and join as editors.
           </p>
 
@@ -89,14 +110,18 @@ export function ShareListModal() {
               type="button"
               disabled={loading}
               onClick={handleCreateInvite}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-700 text-white text-sm font-semibold hover:bg-amber-800 disabled:opacity-60"
             >
-              <Link2 className="w-4 h-4" />
+              <Link2 className="w-4 h-4" aria-hidden="true" />
               {loading ? 'Creating…' : 'Create invite link'}
             </button>
           ) : (
             <div className="flex gap-2">
+              <label htmlFor="share-invite-url" className="sr-only">
+                Invite URL
+              </label>
               <input
+                id="share-invite-url"
                 readOnly
                 value={inviteUrl}
                 className="flex-1 text-xs font-mono px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 truncate"
@@ -105,21 +130,26 @@ export function ShareListModal() {
                 type="button"
                 onClick={handleCopy}
                 className="px-3 rounded-lg bg-stone-200 hover:bg-stone-300"
+                aria-label={copied ? 'Copied' : 'Copy invite link'}
               >
                 {copied ? (
-                  <Check className="w-4 h-4 text-emerald-600" />
+                  <Check className="w-4 h-4 text-emerald-600" aria-hidden="true" />
                 ) : (
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-4 h-4" aria-hidden="true" />
                 )}
               </button>
             </div>
           )}
 
-          {error && <p className="text-xs text-rose-700">{error}</p>}
+          {error && (
+            <p role="alert" className="text-xs text-rose-700">
+              {error}
+            </p>
+          )}
 
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400 mb-2">
-              <Users className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+              <Users className="w-3.5 h-3.5" aria-hidden="true" />
               Members
             </div>
             {members.length === 0 ? (
@@ -135,14 +165,14 @@ export function ShareListModal() {
                       {m.userId.slice(0, 8)}…
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase text-stone-400">{m.role}</span>
+                      <span className="text-[10px] uppercase text-stone-500">{m.role}</span>
                       <button
                         type="button"
                         onClick={() => handleRemove(m.userId)}
-                        className="p-1 text-stone-400 hover:text-rose-600"
+                        className="p-1.5 text-stone-400 hover:text-rose-600"
                         aria-label="Remove member"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     </div>
                   </li>

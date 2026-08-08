@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   Calendar,
@@ -13,6 +13,7 @@ import {
   Tag,
   Timer,
   Focus,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Todo } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
@@ -46,6 +47,8 @@ export function TodoRow({ todo }: TodoRowProps) {
   } = useAppStore();
 
   const canEdit = canEditList(todo.listId);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const isDetailSelected = selectedTodoId === todo.id;
   const isBulkSelected = selectedTodoIds.includes(todo.id);
@@ -56,39 +59,65 @@ export function TodoRow({ todo }: TodoRowProps) {
   const overdue = isOverdue(todo.dueDate, todo.completed);
   const isDueToday = todo.dueDate === getTodayISO();
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
+
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleTodoComplete(todo.id);
 
     if (!todo.completed) {
       if (todo.priority === 'high' || todoChecklists.length > 2) {
-        confetti({
-          particleCount: 40,
-          spread: 60,
-          origin: { y: 0.8 },
-          colors: ['#D97706', '#2563EB', '#10B981'],
-        });
+        const reduceMotion =
+          typeof window !== 'undefined' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!reduceMotion) {
+          confetti({
+            particleCount: 40,
+            spread: 60,
+            origin: { y: 0.8 },
+            colors: ['#D97706', '#2563EB', '#10B981'],
+          });
+        }
       }
     }
   };
 
-  const handleRowClick = () => {
+  const openDetail = () => {
     setSelectedTodoId(todo.id);
   };
 
   const handleQuickScheduleToday = (e: React.MouseEvent) => {
     e.stopPropagation();
     updateTodo(todo.id, { dueDate: getTodayISO() });
+    setMenuOpen(false);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     deleteTodo(todo.id);
+    setMenuOpen(false);
   };
 
   const handleTogglePin = (e: React.MouseEvent) => {
     e.stopPropagation();
     updateTodo(todo.id, { pinned: !todo.pinned });
+    setMenuOpen(false);
   };
 
   const handleBulkSelect = (e: React.MouseEvent) => {
@@ -96,10 +125,15 @@ export function TodoRow({ todo }: TodoRowProps) {
     toggleTodoSelection(todo.id);
   };
 
+  const handleStartFocus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    startFocus(todo.id);
+    setMenuOpen(false);
+  };
+
   return (
     <div
-      onClick={handleRowClick}
-      className={`group relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+      className={`group relative flex items-center justify-between p-3.5 rounded-xl border transition-all ${
         isBulkSelected
           ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-sm'
           : isDetailSelected
@@ -109,53 +143,71 @@ export function TodoRow({ todo }: TodoRowProps) {
               : 'bg-white border-stone-200/80 hover:border-amber-500/30 hover:shadow-sm'
       }`}
     >
-      <div className="flex items-start gap-2.5 min-w-0 flex-1 pr-2">
-        {/* Bulk select checkbox */}
+      <div className="flex items-start gap-1 min-w-0 flex-1 pr-2">
+        {/* Bulk select — always on sm+; on mobile only once a selection is active */}
         <button
           onClick={handleBulkSelect}
-          className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition ${
-            isBulkSelected
-              ? 'bg-indigo-600 border-indigo-600 text-white'
-              : 'border-stone-300 bg-white hover:border-indigo-400 opacity-60 group-hover:opacity-100'
-          }`}
+          className={`mt-0.5 min-w-11 min-h-11 -m-2 p-2 items-center justify-center flex-shrink-0 transition ${
+            selectedTodoIds.length > 0 || isBulkSelected ? 'flex' : 'hidden sm:flex'
+          } ${isBulkSelected ? '' : 'opacity-50'}`}
           aria-label={isBulkSelected ? 'Deselect task' : 'Select task'}
           title="Select for bulk actions"
         >
-          {isBulkSelected && (
-            <svg className="w-2.5 h-2.5 stroke-current fill-none stroke-[3]" viewBox="0 0 16 16">
-              <path d="M3 8.5L6.5 12L13 4.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
+          <span
+            className={`w-5 h-5 rounded border flex items-center justify-center transition ${
+              isBulkSelected
+                ? 'bg-indigo-600 border-indigo-600 text-white'
+                : 'border-stone-300 bg-white hover:border-indigo-400'
+            }`}
+          >
+            {isBulkSelected && (
+              <svg className="w-3 h-3 stroke-current fill-none stroke-[3]" viewBox="0 0 16 16">
+                <path d="M3 8.5L6.5 12L13 4.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </span>
         </button>
 
-        {/* Complete checkbox */}
+        {/* Complete checkbox — ≥44px hit area */}
         <button
           onClick={handleToggle}
-          className={`relative mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all flex-shrink-0 ${
-            todo.completed
-              ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
-              : 'border-stone-300 hover:border-amber-500 bg-white'
-          }`}
+          className="relative mt-0.5 min-w-11 min-h-11 -m-2 p-2 flex items-center justify-center flex-shrink-0"
           aria-label={todo.completed ? 'Mark incomplete' : 'Mark complete'}
         >
-          {todo.completed && (
-            <svg className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.5]" viewBox="0 0 16 16">
-              <path
-                className="animate-check-draw"
-                d="M3 8.5L6.5 12L13 4.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
+          <span
+            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+              todo.completed
+                ? 'bg-amber-700 border-amber-700 text-white shadow-sm'
+                : 'border-stone-300 hover:border-amber-500 bg-white'
+            }`}
+          >
+            {todo.completed && (
+              <svg
+                className="w-3.5 h-3.5 stroke-current fill-none stroke-[2.5]"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  className="animate-check-draw"
+                  d="M3 8.5L6.5 12L13 4.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </span>
         </button>
 
         <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openDetail}
+            className="flex items-center gap-2 w-full text-left rounded-md"
+            aria-current={isDetailSelected ? 'true' : undefined}
+          >
             <span
               className={`text-sm font-medium leading-snug transition-all ${
                 todo.completed
-                  ? 'line-through text-stone-400'
+                  ? 'line-through text-stone-500'
                   : 'text-stone-900 group-hover:text-stone-950'
               }`}
             >
@@ -163,25 +215,27 @@ export function TodoRow({ todo }: TodoRowProps) {
             </span>
 
             {todo.priority === 'high' && !todo.completed && (
-              <span
-                className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"
-                title="High priority"
-              />
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <span className="w-2 h-2 rounded-full bg-rose-500" aria-hidden="true" />
+                <span className="sr-only">High priority</span>
+              </span>
             )}
             {todo.priority === 'medium' && !todo.completed && (
-              <span
-                className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"
-                title="Medium priority"
-              />
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden="true" />
+                <span className="sr-only">Medium priority</span>
+              </span>
             )}
-          </div>
+          </button>
 
-          <div className="flex items-center gap-2.5 flex-wrap text-xs text-stone-500">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-stone-500">
+            {/* Always: list + due — keep the row scannable on narrow screens */}
             {listObj && (
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-medium text-[11px]">
                 <span
                   className="w-1.5 h-1.5 rounded-full"
                   style={{ backgroundColor: listObj.color }}
+                  aria-hidden="true"
                 />
                 {listObj.name}
               </span>
@@ -197,22 +251,23 @@ export function TodoRow({ todo }: TodoRowProps) {
                       : 'bg-stone-100 text-stone-600'
                 }`}
               >
-                <Calendar className="w-3 h-3" />
+                <Calendar className="w-3 h-3" aria-hidden="true" />
                 {formatFriendlyDate(todo.dueDate)}
                 {todo.startTime ? ` · ${formatStartTime(todo.startTime)}` : ''}
               </span>
             )}
 
+            {/* Secondary meta: sm+ only — detail panel has the rest */}
             {todo.durationMinutes ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 font-medium text-[11px]">
-                <Timer className="w-3 h-3 text-teal-600" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 font-medium text-[11px]">
+                <Timer className="w-3 h-3 text-teal-600" aria-hidden="true" />
                 {formatDuration(todo.durationMinutes)}
               </span>
             ) : null}
 
             {todo.recurrence && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 font-medium text-[11px]">
-                <Repeat className="w-3 h-3 text-purple-600" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 font-medium text-[11px]">
+                <Repeat className="w-3 h-3 text-purple-600" aria-hidden="true" />
                 {formatRecurrenceLabel(todo.recurrence)}
               </span>
             )}
@@ -225,22 +280,22 @@ export function TodoRow({ todo }: TodoRowProps) {
                   e.stopPropagation();
                   setActiveTagFilter(tag);
                 }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 font-medium text-[11px] hover:bg-indigo-100"
+                className="hidden sm:inline-flex items-center gap-1 min-h-9 px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-800 font-medium text-[11px] hover:bg-indigo-100"
               >
-                <Tag className="w-3 h-3 text-indigo-600" />#{tag}
+                <Tag className="w-3 h-3 text-indigo-600" aria-hidden="true" />#{tag}
               </button>
             ))}
 
             {todoChecklists.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-mono text-[11px]">
-                <CheckSquare className="w-3 h-3 text-stone-500" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-mono text-[11px]">
+                <CheckSquare className="w-3 h-3 text-stone-500" aria-hidden="true" />
                 {completedChecklistCount}/{todoChecklists.length}
               </span>
             )}
 
             {todo.remindAt && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-medium text-[11px]">
-                <Clock className="w-3 h-3 text-blue-600" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-medium text-[11px]">
+                <Clock className="w-3 h-3 text-blue-600" aria-hidden="true" />
                 {new Date(todo.remindAt).toLocaleTimeString([], {
                   hour: 'numeric',
                   minute: '2-digit',
@@ -249,7 +304,7 @@ export function TodoRow({ todo }: TodoRowProps) {
             )}
 
             {todo.notes && todo.notes.trim().length > 0 && (
-              <span className="text-[11px] text-stone-400 italic truncate max-w-[180px]">
+              <span className="hidden sm:inline text-[11px] text-stone-500 italic truncate max-w-[180px]">
                 &ldquo;{todo.notes}&rdquo;
               </span>
             )}
@@ -257,51 +312,140 @@ export function TodoRow({ todo }: TodoRowProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Fine pointer: hover action cluster */}
+      <div className="pointer-actions items-center gap-1">
         {!todo.completed && canEdit && (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              startFocus(todo.id);
-            }}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-amber-700 hover:bg-amber-50 transition"
-            title="Start focus"
+            type="button"
+            onClick={handleStartFocus}
+            className="tap-target rounded-lg text-stone-500 hover:text-amber-700 hover:bg-amber-50 transition"
+            aria-label="Start focus"
           >
-            <Focus className="w-3.5 h-3.5" />
+            <Focus className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         )}
 
         <button
+          type="button"
           onClick={handleTogglePin}
-          className={`p-1.5 rounded-lg transition ${
+          className={`tap-target rounded-lg transition ${
             todo.pinned
               ? 'text-amber-600 bg-amber-50'
-              : 'text-stone-400 hover:text-stone-700 hover:bg-stone-100'
+              : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
           }`}
-          title={todo.pinned ? 'Unpin task' : 'Pin to top'}
+          aria-label={todo.pinned ? 'Unpin task' : 'Pin to top'}
+          aria-pressed={todo.pinned}
         >
-          <Pin className="w-3.5 h-3.5" />
+          <Pin className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
 
         {!todo.dueDate && (
           <button
+            type="button"
             onClick={handleQuickScheduleToday}
-            className="px-2 py-1 text-[11px] font-medium text-stone-600 hover:text-amber-700 bg-stone-100 hover:bg-amber-50 rounded-lg transition"
-            title="Schedule for Today"
+            className="min-h-11 px-2.5 text-[11px] font-medium text-stone-600 hover:text-amber-700 bg-stone-100 hover:bg-amber-50 rounded-lg transition"
           >
             + Today
           </button>
         )}
 
         <button
+          type="button"
           onClick={handleDelete}
-          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-          title="Delete task"
+          className="tap-target text-stone-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+          aria-label="Delete task"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
 
-        <ChevronRight className="w-4 h-4 text-stone-300 ml-1" />
+        <button
+          type="button"
+          onClick={openDetail}
+          className="tap-target rounded-lg text-stone-500 hover:text-stone-700 transition"
+          aria-label={`Open details for ${todo.title}`}
+        >
+          <ChevronRight className="w-4 h-4" aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Touch: overflow menu */}
+      <div className="touch-actions items-center gap-1 relative" ref={menuRef}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((o) => !o);
+          }}
+          className="tap-target rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-100"
+          aria-label="Task actions"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+        >
+          <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={openDetail}
+          className="tap-target text-stone-500 hover:text-stone-700"
+          aria-label={`Open details for ${todo.title}`}
+        >
+          <ChevronRight className="w-4 h-4" aria-hidden="true" />
+        </button>
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full mt-1 z-30 w-40 rounded-xl bg-white border border-stone-200 shadow-xl py-1"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBulkSelect(e);
+                setMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-stone-700 hover:bg-stone-50"
+            >
+              Select
+            </button>
+            {!todo.completed && canEdit && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleStartFocus}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-stone-700 hover:bg-amber-50"
+              >
+                <Focus className="w-3.5 h-3.5" aria-hidden="true" /> Focus
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleTogglePin}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-stone-700 hover:bg-stone-50"
+            >
+              <Pin className="w-3.5 h-3.5" aria-hidden="true" /> {todo.pinned ? 'Unpin' : 'Pin'}
+            </button>
+            {!todo.dueDate && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleQuickScheduleToday}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-stone-700 hover:bg-amber-50"
+              >
+                <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> + Today
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleDelete}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-rose-600 hover:bg-rose-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
