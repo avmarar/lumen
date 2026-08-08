@@ -52,3 +52,108 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(168, 162, 158, 0.5);
 }
+
+/* PWA / notched device safe areas (additive to typical 1rem padding) */
+.pt-safe {
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+}
+.pb-safe {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+.bottom-safe {
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Visible keyboard focus (pairs with focus:outline-none on controls) */
+:focus-visible {
+  outline: 2px solid #d97706;
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Screen-reader-only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Minimum touch / pointer target (WCAG 2.5.5 aim ≈44×44) */
+.tap-target {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * Touch vs fine-pointer affordances:
+ * - .touch-actions: always visible on coarse pointers; hidden when fine hover exists
+ * - .pointer-actions: hover/focus-within reveal cluster for mouse/trackpad
+ * - .hover-reveal: opacity fade inside a .group on fine pointers only
+ */
+.touch-actions {
+  display: flex;
+}
+.pointer-actions {
+  display: none;
+}
+.hover-reveal {
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .touch-actions {
+    display: none;
+  }
+  .pointer-actions {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .group:hover .pointer-actions,
+  .group:focus-within .pointer-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .group .hover-reveal {
+    opacity: 0;
+  }
+  .group:hover .hover-reveal,
+  .group:focus-within .hover-reveal {
+    opacity: 1;
+  }
+  .group\/block .hover-reveal {
+    opacity: 0;
+  }
+  .group\/block:hover .hover-reveal,
+  .group\/block:focus-within .hover-reveal {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-check-draw,
+  .animate-in,
+  .animate-pulse {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

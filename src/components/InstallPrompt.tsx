@@ -50,22 +50,22 @@ export function InstallPrompt() {
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-stone-800/80 border border-stone-700/60">
+    <div className="flex items-center justify-between gap-1 px-1 py-0.5 rounded-lg bg-stone-800/80 border border-stone-700/60">
       <button
         type="button"
         onClick={handleInstall}
-        className="flex items-center gap-1.5 text-[11px] font-medium text-amber-300 hover:text-amber-200"
+        className="tap-target flex-1 justify-start gap-1.5 px-2 text-[11px] font-medium text-amber-300 hover:text-amber-200"
       >
-        <Download className="w-3.5 h-3.5" />
+        <Download className="w-3.5 h-3.5" aria-hidden="true" />
         Install app
       </button>
       <button
         type="button"
         onClick={handleDismiss}
-        className="p-0.5 text-stone-500 hover:text-stone-300"
+        className="tap-target text-stone-500 hover:text-stone-300"
         aria-label="Dismiss install prompt"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-3.5 h-3.5" aria-hidden="true" />
       </button>
     </div>
   );

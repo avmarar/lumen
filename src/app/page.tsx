@@ -75,9 +75,17 @@ export default function HomePage() {
 
   if (!isHydrated) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-100">
+      <div
+        className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-100"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 animate-pulse">
+          <div
+            className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 animate-pulse"
+            aria-hidden="true"
+          >
             <Sparkles className="w-5 h-5" />
           </div>
           <p className="font-serif text-lg font-semibold tracking-tight text-amber-100">
@@ -159,7 +167,7 @@ export default function HomePage() {
       <main className="flex-1 flex flex-col h-full overflow-y-auto min-w-0">
         <MainHeader />
 
-        <div className="flex-1 p-4 md:p-8 max-w-4xl w-full mx-auto space-y-6 pb-24">
+        <div className="flex-1 p-4 md:p-8 max-w-4xl w-full mx-auto space-y-6 pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
           {/* Quick Add Bar */}
           <QuickAdd />
 
@@ -203,13 +211,16 @@ export default function HomePage() {
               {/* Empty State */}
               {statusFilteredTodos.length === 0 && (
                 <div className="py-16 text-center border-2 border-dashed border-stone-200/80 rounded-2xl bg-white/60 p-8 space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-700 flex items-center justify-center mx-auto shadow-xs">
+                  <div
+                    className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-700 flex items-center justify-center mx-auto shadow-xs"
+                    aria-hidden="true"
+                  >
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-serif text-lg font-bold text-stone-800">
+                    <h3 className="font-serif text-lg font-bold text-stone-800">
                       All clear for now
-                    </h4>
+                    </h3>
                     <p className="text-xs text-stone-500 max-w-xs mx-auto mt-1 font-medium">
                       No tasks found in this view. Capture a new task above or press{' '}
                       <kbd className="font-mono bg-stone-100 px-1 border rounded">N</kbd> to get

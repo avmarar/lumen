@@ -90,24 +90,39 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-amber-50/40 p-6">
-      <div className="max-w-sm w-full rounded-2xl bg-white border border-stone-200 p-6 text-center shadow-sm">
+      <main
+        className="max-w-sm w-full rounded-2xl bg-white border border-stone-200 p-6 text-center shadow-sm"
+        aria-busy={status === 'loading'}
+      >
         <h1 className="font-serif text-xl text-stone-900 mb-2">List invite</h1>
-        {status === 'loading' && <p className="text-sm text-stone-500">Accepting invite…</p>}
+        {status === 'loading' && (
+          <p className="text-sm text-stone-500" role="status">
+            Accepting invite…
+          </p>
+        )}
         {status === 'need-auth' && (
           <div className="space-y-3">
             <p className="text-sm text-stone-600">Sign in to accept this invite.</p>
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700"
+              className="min-h-11 px-4 py-2 rounded-xl bg-amber-700 text-white text-sm font-semibold hover:bg-amber-800"
             >
               Sign in
             </button>
           </div>
         )}
-        {status === 'ok' && <p className="text-sm text-emerald-700">{message}</p>}
-        {status === 'error' && <p className="text-sm text-rose-700">{message}</p>}
-      </div>
+        {status === 'ok' && (
+          <p className="text-sm text-emerald-700" role="status">
+            {message}
+          </p>
+        )}
+        {status === 'error' && (
+          <p className="text-sm text-rose-700" role="alert">
+            {message}
+          </p>
+        )}
+      </main>
       <AuthModal />
     </div>
   );
