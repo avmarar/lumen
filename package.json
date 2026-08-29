@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@serwist/turbopack": "^9.5.12",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "~4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -52,7 +52,10 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.9.6",
-    "tailwindcss": "^4",
+    "tailwindcss": "~4.3.3",
     "typescript": "^5"
+  },
+  "overrides": {
+    "nanoid": "3.3.18"
   }
 }
